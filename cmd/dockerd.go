@@ -18,9 +18,9 @@ func (d Dockerd) Command() *cobra.Command {
 		Short: "Docker Daemon",
 		Long:  "Docker Daemon is a containerization platform that allows you to build, ship, and run containers.",
 		Run: func(cmd *cobra.Command, args []string) {
-			d.main()
+			StartDockerd(d.Cfg)
 		},
 	}
 }
 
-func (d Dockerd) main() {}
+func StartDockerd(cfg *configs.DockerdConfig) {}

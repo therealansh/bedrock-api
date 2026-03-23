@@ -17,9 +17,9 @@ func (a API) Command() *cobra.Command {
 		Short: "API Server",
 		Long:  "API Server is a RESTful API server that provides endpoints for managing and interacting with the system.",
 		Run: func(cmd *cobra.Command, args []string) {
-			a.main()
+			StartAPI(a.Cfg)
 		},
 	}
 }
 
-func (a API) main() {}
+func StartAPI(cfg *configs.APIConfig) {}

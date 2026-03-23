@@ -18,9 +18,9 @@ func (f FileMD) Command() *cobra.Command {
 		Short: "File Management Daemon",
 		Long:  "File Management Daemon is a POSIX-compliant file management system that provides a unified interface for handling file operations.",
 		Run: func(cmd *cobra.Command, args []string) {
-			f.main()
+			StartFileMD(f.Cfg)
 		},
 	}
 }
 
-func (f FileMD) main() {}
+func StartFileMD(cfg *configs.FileMDConfig) {}
