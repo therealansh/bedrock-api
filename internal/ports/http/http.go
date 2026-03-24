@@ -7,9 +7,12 @@ import (
 	"github.com/labstack/echo/v5/middleware"
 )
 
-type HTTPServer struct{}
+type HTTPServer struct {
+	Address       string
+	SocketAddress string
+}
 
-func (h HTTPServer) Serve(host string, port int) error {
+func (h HTTPServer) Serve() error {
 	// create a new echo instance
 	e := echo.New()
 
@@ -18,7 +21,7 @@ func (h HTTPServer) Serve(host string, port int) error {
 
 	// set the middlewares
 	e.Use(middleware.RequestLogger())
-	e.Use(middleware.CORS())
+	e.Use(middleware.CORS("*"))
 
 	// create api group
 	api := e.Group("/api")
@@ -30,7 +33,7 @@ func (h HTTPServer) Serve(host string, port int) error {
 	api.GET("/sessions/:id/logs", h.getSessionLogs)
 
 	// start the server
-	if err := e.Start(fmt.Sprintf("%s:%d", host, port)); err != nil {
+	if err := e.Start(h.Address); err != nil {
 		return fmt.Errorf("failed to start echo server: %v", err)
 	}
 

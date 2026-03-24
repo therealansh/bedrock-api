@@ -2,20 +2,24 @@ package zmq
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/zeromq/goczmq"
 )
 
 type ZMQServer struct {
+	Address string
 }
 
-func (z ZMQServer) Serve(host string, port int) error {
+func (z ZMQServer) Serve() error {
 	// create a router socket and bind it to the specified host and port
-	router, err := goczmq.NewRouter(fmt.Sprintf("tcp://%s:%d", host, port))
+	router, err := goczmq.NewRouter(z.Address)
 	if err != nil {
 		return fmt.Errorf("failed to start zemq server: %v", err)
 	}
 	defer router.Destroy()
+
+	log.Printf("ZMQ server started at %s", z.Address)
 
 	// start the socket receiver, handler, and sender goroutines
 	in := make(chan [][]byte)

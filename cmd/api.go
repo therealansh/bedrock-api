@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/amirhnajafiz/bedrock-api/internal/configs"
 	"github.com/amirhnajafiz/bedrock-api/internal/ports/http"
 	"github.com/amirhnajafiz/bedrock-api/internal/ports/zmq"
@@ -27,16 +29,21 @@ func (a API) Command() *cobra.Command {
 
 func StartAPI(cfg *configs.APIConfig) {
 	// start the ZMQ server
-	zmqServer := zmq.ZMQServer{}
+	zmqServer := zmq.ZMQServer{
+		Address: fmt.Sprintf("tcp://%s:%d", cfg.SocketHost, cfg.SocketPort),
+	}
 	go func() {
-		if err := zmqServer.Serve(cfg.SocketHost, cfg.SocketPort); err != nil {
+		if err := zmqServer.Serve(); err != nil {
 			panic(err)
 		}
 	}()
 
 	// start the HTTP server
-	httpServer := http.HTTPServer{}
-	if err := httpServer.Serve(cfg.HTTPHost, cfg.HTTPPort); err != nil {
+	httpServer := http.HTTPServer{
+		Address:       fmt.Sprintf("%s:%d", cfg.HTTPHost, cfg.HTTPPort),
+		SocketAddress: zmqServer.Address,
+	}
+	if err := httpServer.Serve(); err != nil {
 		panic(err)
 	}
 }

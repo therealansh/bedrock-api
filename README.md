@@ -41,6 +41,14 @@ Bedrock API is an HTTP server service that enables interaction with **Bedrock** 
 * [GET] /api/id
   * Upon calling the default route with a request UID, we must serve the output files of tracing from the file manager daemon.
 
+## Requirements
+
+* Docker
+* libzmq3-dev
+* libczmq-dev
+* libsodium-dev
+* pkg-config
+
 ## Related Projects
 
 * [Bedrock Tracer](https://github.com/amirhnajafiz/bedrock-tracer)

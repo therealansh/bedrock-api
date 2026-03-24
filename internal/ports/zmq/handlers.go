@@ -23,6 +23,9 @@ func (z ZMQServer) socketSender(router *goczmq.Sock, channel chan [][]byte) {
 
 func (z ZMQServer) socketHandler(in chan [][]byte, out chan [][]byte) {
 	for event := range in {
-		out <- event
+		msg := string(event[1])
+		if msg == "ping" {
+			out <- [][]byte{event[0], []byte("pong")}
+		}
 	}
 }
