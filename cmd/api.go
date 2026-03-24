@@ -4,10 +4,12 @@ import (
 	"fmt"
 
 	"github.com/amirhnajafiz/bedrock-api/internal/configs"
+	"github.com/amirhnajafiz/bedrock-api/internal/logger"
 	"github.com/amirhnajafiz/bedrock-api/internal/ports/http"
 	"github.com/amirhnajafiz/bedrock-api/internal/ports/zmq"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 // API represents the API command.
@@ -28,13 +30,17 @@ func (a API) Command() *cobra.Command {
 }
 
 func StartAPI(cfg *configs.APIConfig) {
+	// create a new logger instance
+	logr := logger.New(cfg.LogLevel)
+
 	// start the ZMQ server
 	zmqServer := zmq.ZMQServer{
 		Address: fmt.Sprintf("tcp://%s:%d", cfg.SocketHost, cfg.SocketPort),
+		Logr:    logr.Named("zmq"),
 	}
 	go func() {
 		if err := zmqServer.Serve(); err != nil {
-			panic(err)
+			logr.Panic("zmq failed", zap.Error(err))
 		}
 	}()
 
@@ -42,8 +48,9 @@ func StartAPI(cfg *configs.APIConfig) {
 	httpServer := http.HTTPServer{
 		Address:       fmt.Sprintf("%s:%d", cfg.HTTPHost, cfg.HTTPPort),
 		SocketAddress: zmqServer.Address,
+		Logr:          logr.Named("http"),
 	}
 	if err := httpServer.Serve(); err != nil {
-		panic(err)
+		logr.Panic("http failed", zap.Error(err))
 	}
 }
