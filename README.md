@@ -170,8 +170,7 @@ Session
 │   ├── Command
 │   └── Timeout
 ├── Status
-├── Uptime
-├── Trace Bytes
+├── Created At
 └── DockerD ID
 ```
 

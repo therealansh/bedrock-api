@@ -2,29 +2,30 @@ package models
 
 import "encoding/json"
 
-// Packet represents a collection of events to be sent together.
+// Packet represents a collection of sessions to be sent together over ZMQ.
 type Packet struct {
-	Flag   byte    `json:"flag"`
-	Events []Event `json:"events"`
+	Sender   string    `json:"sender"`
+	Sessions []Session `json:"sessions"`
 }
 
-// NewPacket creates a new Packet instance and adds the provided events to it.
-func NewPacket(flag byte, events ...Event) *Packet {
-	instance := Packet{
-		Flag:   flag,
-		Events: make([]Event, 0),
+// NewPacket creates and returns a new Packet instance.
+func NewPacket(sender string) Packet {
+	return Packet{
+		Sender: sender,
 	}
-
-	instance.AddEvents(events...)
-
-	return &instance
 }
 
-// AddEvents adds one or more events to the packet and updates the event count accordingly.
-func (p *Packet) AddEvents(events ...Event) {
-	for _, event := range events {
-		p.Events = append(p.Events, event)
+// WithSessions adds sessions to the packet.
+func (p Packet) WithSessions(sessions ...Session) Packet {
+	if p.Sessions == nil {
+		p.Sessions = make([]Session, 0)
 	}
+
+	for _, session := range sessions {
+		p.Sessions = append(p.Sessions, session)
+	}
+
+	return p
 }
 
 // ToBytes converts the Packet struct to a byte slice.
