@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/amirhnajafiz/bedrock-api/internal/configs"
 	"github.com/amirhnajafiz/bedrock-api/internal/logger"
@@ -48,8 +49,26 @@ func StartDockerd(cfg *configs.DockerdConfig) {
 	address := fmt.Sprintf("tcp://%s:%d", cfg.APISocketHost, cfg.APISocketPort)
 
 	// register this docker daemon with API
+	registered := false
 	_, err := zclient.SendEvent(address, models.NewPacket().WithRegisterDaemon(name).ToBytes(), 20)
 	if err != nil {
 		logr.Warn("register daemon failed", zap.Error(err))
+		for range cfg.APIConnectionRetrys {
+			_, e := zclient.SendEvent(address, models.NewPacket().WithRegisterDaemon(name).ToBytes(), 20)
+			if e == nil {
+				registered = true
+				break
+			}
+
+			time.Sleep(2 * time.Second)
+		}
+	} else {
+		registered = true
+	}
+
+	// check registration before main loop
+	if !registered {
+		logr.Error("API registration failed", zap.Int("retrys", cfg.APIConnectionRetrys))
+		return
 	}
 }

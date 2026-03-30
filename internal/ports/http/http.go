@@ -3,6 +3,9 @@ package http
 import (
 	"fmt"
 
+	"github.com/amirhnajafiz/bedrock-api/internal/scheduler"
+	"github.com/amirhnajafiz/bedrock-api/internal/storage"
+
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 	"go.uber.org/zap"
@@ -12,7 +15,9 @@ type HTTPServer struct {
 	Address       string
 	SocketAddress string
 
-	Logr *zap.Logger
+	Logr      *zap.Logger
+	Scheduler scheduler.Scheduler
+	Storage   storage.KVStorage
 }
 
 func (h HTTPServer) Serve() error {

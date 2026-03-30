@@ -13,10 +13,11 @@ func Default() *Config {
 			RunInFullMode:  false,
 		},
 		Dockerd: &DockerdConfig{
-			Name:          "hostname",
-			LogLevel:      "info",
-			APISocketHost: "127.0.0.1",
-			APISocketPort: 8081,
+			Name:                "hostname",
+			LogLevel:            "info",
+			APISocketHost:       "127.0.0.1",
+			APISocketPort:       8081,
+			APIConnectionRetrys: 1,
 		},
 		FileMD: &FileMDConfig{
 			LogLevel:    "info",

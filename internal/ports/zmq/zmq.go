@@ -4,14 +4,18 @@ import (
 	"fmt"
 
 	"github.com/amirhnajafiz/bedrock-api/internal/scheduler"
+	"github.com/amirhnajafiz/bedrock-api/internal/storage"
+
 	"github.com/zeromq/goczmq"
 	"go.uber.org/zap"
 )
 
 type ZMQServer struct {
-	Address   string
+	Address string
+
 	Logr      *zap.Logger
 	Scheduler scheduler.Scheduler
+	Storage   storage.KVStorage
 }
 
 func (z ZMQServer) Serve() error {

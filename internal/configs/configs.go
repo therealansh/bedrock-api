@@ -24,10 +24,11 @@ type APIConfig struct {
 
 // DockerdConfig represents the configuration for the Docker Daemon.
 type DockerdConfig struct {
-	Name          string `koanf:"name"`
-	LogLevel      string `koanf:"log_level" validate:"oneof=debug info warn error"`
-	APISocketHost string `koanf:"api_socket_host" validate:"ip"`
-	APISocketPort int    `koanf:"api_socket_port" validate:"min=1,max=65535"`
+	Name                string `koanf:"name"`
+	LogLevel            string `koanf:"log_level" validate:"oneof=debug info warn error"`
+	APISocketHost       string `koanf:"api_socket_host" validate:"ip"`
+	APISocketPort       int    `koanf:"api_socket_port" validate:"min=1,max=65535"`
+	APIConnectionRetrys int    `koanf:"api_connection_retrys" validate:"min=1"`
 }
 
 // FileMDConfig represents the configuration for the File Management Daemon.

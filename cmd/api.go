@@ -32,10 +32,11 @@ func (a API) Command() *cobra.Command {
 
 				go StartAPI(a.Cfg)
 				go StartDockerd(&configs.DockerdConfig{
-					Name:          "hostname",
-					LogLevel:      a.Cfg.LogLevel,
-					APISocketHost: a.Cfg.SocketHost,
-					APISocketPort: a.Cfg.HTTPPort,
+					Name:                "hostname",
+					LogLevel:            a.Cfg.LogLevel,
+					APISocketHost:       a.Cfg.SocketHost,
+					APISocketPort:       a.Cfg.HTTPPort,
+					APIConnectionRetrys: 10,
 				})
 
 				wg.Wait()
@@ -69,6 +70,6 @@ func StartAPI(cfg *configs.APIConfig) {
 		Logr:          logr.Named("http"),
 	}
 	if err := httpServer.Serve(); err != nil {
-		logr.Panic("http failed", zap.Error(err))
+		logr.Error("http failed", zap.Error(err))
 	}
 }
