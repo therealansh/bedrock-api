@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/amirhnajafiz/bedrock-api/internal/configs"
+	"github.com/amirhnajafiz/bedrock-api/internal/containers"
 	"github.com/amirhnajafiz/bedrock-api/internal/logger"
+	"github.com/amirhnajafiz/bedrock-api/pkg/enums"
 	"github.com/amirhnajafiz/bedrock-api/pkg/models"
 	"github.com/amirhnajafiz/bedrock-api/pkg/zclient"
 
@@ -70,5 +72,51 @@ func StartDockerd(cfg *configs.DockerdConfig) {
 	if !registered {
 		logr.Error("API registration failed", zap.Int("retrys", cfg.APIConnectionRetrys))
 		return
+	}
+
+	// containers manager instance
+	var cm containers.ContainerManager
+
+	// dockerd main loop
+	for {
+		time.Sleep(30 * time.Second)
+
+		// TODO: must return status of contaienrs
+		cts, err := cm.ListContainers()
+		if err != nil {
+			logr.Warn("failed to monitor containers", zap.Error(err))
+			continue
+		}
+
+		// TODO: must refactor this based on containers data
+		sessions := make([]models.Session, 0)
+		for _, c := range cts {
+			sessions = append(sessions, models.Session{
+				Id:     c,
+				Status: enums.SessionStatusRunning,
+			})
+		}
+
+		// build a packet
+		packet := models.NewPacket().WithSender(name).WithSessions(sessions...)
+
+		// send packet to ZMQ server
+		resp, err := zclient.SendEvent(address, packet.ToBytes(), 30)
+		if err != nil {
+			logr.Warn("failed to call API", zap.Error(err))
+			continue
+		}
+
+		// get the response from ZMQ server
+		respPacket, err := models.PacketFromBytes(resp)
+		if err != nil {
+			logr.Warn("failed to parse packet", zap.Error(err))
+			continue
+		}
+
+		// TODO: make changes to reach to API state
+		for _, session := range respPacket.Sessions {
+			fmt.Println(session.Id)
+		}
 	}
 }

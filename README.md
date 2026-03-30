@@ -253,6 +253,15 @@ Uploads session tracing logs.
 * libsodium-dev
 * pkg-config
 
+## Build & Run
+
+```sh
+make build
+touch config.yaml
+./bedrock api
+./bedrock dockerd
+```
+
 ## Related Projects
 
 * GitHub repository: **Bedrock Tracer**

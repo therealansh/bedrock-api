@@ -19,7 +19,6 @@ type APIConfig struct {
 	SocketHost     string `koanf:"socket_host" validate:"ip"`
 	SocketPort     int    `koanf:"socket_port" validate:"min=1,max=65535"`
 	SocketHandlers int    `koanf:"socket_handlers" validate:"min=1"`
-	RunInFullMode  bool   `koanf:"run_in_full_mode"`
 }
 
 // DockerdConfig represents the configuration for the Docker Daemon.

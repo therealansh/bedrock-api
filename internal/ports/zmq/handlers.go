@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// socket receiver reads input messages from router and sends them over handler channel.
 func (z ZMQServer) socketReceiver(router *goczmq.Sock, channel chan [][]byte) {
 	for {
 		request, err := router.RecvMessage()
@@ -19,6 +20,7 @@ func (z ZMQServer) socketReceiver(router *goczmq.Sock, channel chan [][]byte) {
 	}
 }
 
+// socket sender reads input from handler channel and sends them to router.
 func (z ZMQServer) socketSender(router *goczmq.Sock, channel chan [][]byte) {
 	for event := range channel {
 		if err := router.SendMessage(event); err != nil {
@@ -28,25 +30,31 @@ func (z ZMQServer) socketSender(router *goczmq.Sock, channel chan [][]byte) {
 	}
 }
 
+// socket handler is the main loop of ZMQ server.
 func (z ZMQServer) socketHandler(in chan [][]byte, out chan [][]byte) {
 	for event := range in {
-		msg, err := models.PacketFromBytes(event[1])
+		// parse events into packets
+		pkt, err := models.PacketFromBytes(event[1])
 		if err != nil {
 			z.Logr.Warn("failed to parse event", zap.Error(err))
 			continue
 		}
 
-		if msg.IsEmpty() {
-			out <- [][]byte{event[0], msg.ToBytes()}
+		// reply empty packets
+		if pkt.IsEmpty() {
+			out <- [][]byte{event[0], pkt.ToBytes()}
 			continue
 		}
 
-		if val, ok := msg.Headers["register_daemon"]; ok {
+		// check daemon registration
+		if val, ok := pkt.Headers["register_daemon"]; ok {
 			z.Scheduler.Append(val)
 			z.Logr.Info("new daemon registered", zap.String("name", val))
 
-			out <- [][]byte{event[0], msg.ToBytes()}
+			out <- [][]byte{event[0], pkt.ToBytes()}
 			continue
 		}
+
+		// TODO: read sessions, update KV storage, respond with sender sessions
 	}
 }
