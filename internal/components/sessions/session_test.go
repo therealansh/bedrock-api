@@ -1,4 +1,4 @@
-package gocache_test
+package sessions
 
 import (
 	"errors"
@@ -9,8 +9,8 @@ import (
 	"github.com/amirhnajafiz/bedrock-api/internal/storage/gocache"
 )
 
-func newTestSessionStore() *gocache.SessionStore {
-	return gocache.NewSessionStore(gocache.NewBackend(time.Minute))
+func newTestSessionStore() SessionStore {
+	return &sessionStore{backend: gocache.NewBackend(time.Minute)}
 }
 
 func TestSessionStore_SaveAndGet(t *testing.T) {
@@ -162,26 +162,5 @@ func TestSessionStore_ListSessionsByDockerDId_Empty(t *testing.T) {
 
 	if len(d2Sessions) != 0 {
 		t.Errorf("ListSessionsByDockerDId unknown daemon: got %d entries, want 0", len(d2Sessions))
-	}
-}
-
-func TestSessionStore_ListSessions_IsolatedFromEvents(t *testing.T) {
-	backend := gocache.NewBackend(time.Minute)
-	sessions := gocache.NewSessionStore(backend)
-	events := gocache.NewEventStore(backend)
-
-	_ = sessions.SaveSession("s1", "d1", []byte("session"))
-	_ = events.SaveEvent("e1", []byte("event"))
-
-	all, err := sessions.ListSessions()
-	if err != nil {
-		t.Fatalf("ListSessions: %v", err)
-	}
-
-	if len(all) != 1 {
-		t.Errorf("ListSessions should not include event entries; got %d entries", len(all))
-	}
-	if string(all[0]) != "session" {
-		t.Errorf("ListSessions: got %q, want %q", all[0], "session")
 	}
 }

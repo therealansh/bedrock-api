@@ -1,4 +1,4 @@
-package storage
+package sessions
 
 // SessionStore provides domain-specific access to session data.
 // Sessions are stored as opaque byte slices so the storage layer remains

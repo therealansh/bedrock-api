@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/amirhnajafiz/bedrock-api/internal/components/containers"
 	"github.com/amirhnajafiz/bedrock-api/internal/configs"
-	"github.com/amirhnajafiz/bedrock-api/internal/containers"
 	"github.com/amirhnajafiz/bedrock-api/internal/logger"
 	"github.com/amirhnajafiz/bedrock-api/pkg/enums"
 	"github.com/amirhnajafiz/bedrock-api/pkg/models"
