@@ -9,29 +9,61 @@ import (
 	"github.com/amirhnajafiz/bedrock-api/internal/storage/gocache"
 )
 
+// newTestSessionStore creates a SessionStore backed by an in-memory gocache instance.
 func newTestSessionStore() SessionStore {
 	return &sessionStore{backend: gocache.NewBackend(time.Minute)}
 }
 
+// The following test covers the basic save/get flow, ensuring that a session can be stored and retrieved correctly.
 func TestSessionStore_SaveAndGet(t *testing.T) {
 	s := newTestSessionStore()
 
-	if err := s.SaveSession("s1", "d1", []byte(`{"user":"alice"}`)); err != nil {
-		t.Fatalf("SaveSession: %v", err)
+	sessions := []struct {
+		id        string
+		dockerdId string
+		data      []byte
+	}{
+		{"s1", "d1", []byte(`{"user":"alice"}`)},
+		{"s2", "d1", []byte(`{"user":"bob"}`)},
+		{"s3", "d2", []byte(`{"user":"carol"}`)},
+		{"s3", "d2", []byte(`{"user":"carol_updated"}`)}, // same id and dockerdId as previous, should overwrite
 	}
 
-	got, err := s.GetSession("s1", "d1")
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
+	for _, sess := range sessions {
+		if err := s.SaveSession(sess.id, sess.dockerdId, sess.data); err != nil {
+			t.Fatalf("SaveSession: %v", err)
+		}
 
-	if string(got) != `{"user":"alice"}` {
-		t.Errorf("GetSession: got %q", got)
+		got, err := s.GetSession(sess.id, sess.dockerdId)
+		if err != nil {
+			t.Fatalf("GetSession: %v", err)
+		}
+
+		if string(got) != string(sess.data) {
+			t.Errorf("GetSession: got %q, want %q", got, sess.data)
+		}
 	}
 }
 
+// The following test covers the error handling of GetSession when the requested session does not exist, ensuring that the correct error is returned.
 func TestSessionStore_Get_NotFound(t *testing.T) {
 	s := newTestSessionStore()
+
+	sessions := []struct {
+		id        string
+		dockerdId string
+		data      []byte
+	}{
+		{"s1", "d1", []byte(`{"user":"alice"}`)},
+		{"s2", "d1", []byte(`{"user":"bob"}`)},
+		{"s3", "d2", []byte(`{"user":"carol"}`)},
+	}
+
+	for _, sess := range sessions {
+		if err := s.SaveSession(sess.id, sess.dockerdId, sess.data); err != nil {
+			t.Fatalf("SaveSession: %v", err)
+		}
+	}
 
 	_, err := s.GetSession("nope", "d1")
 	if !errors.Is(err, storage.ErrNotFound) {
@@ -39,6 +71,8 @@ func TestSessionStore_Get_NotFound(t *testing.T) {
 	}
 }
 
+// The following test covers the error handling of GetSession when the dockerdId is incorrect,
+// ensuring that sessions are properly namespaced and that the correct error is returned when a session is not found under the wrong namespace.
 func TestSessionStore_Get_WrongDockerdId(t *testing.T) {
 	s := newTestSessionStore()
 
@@ -50,6 +84,8 @@ func TestSessionStore_Get_WrongDockerdId(t *testing.T) {
 	}
 }
 
+// The following test covers the overwrite behavior of SaveSession,
+// ensuring that saving a session with the same id and dockerdId updates the existing entry rather than creating a duplicate.
 func TestSessionStore_Save_Overwrite(t *testing.T) {
 	s := newTestSessionStore()
 
@@ -66,6 +102,8 @@ func TestSessionStore_Save_Overwrite(t *testing.T) {
 	}
 }
 
+// The following test covers the delete functionality of DeleteSession, ensuring that a session can be removed and that subsequent
+// retrieval attempts return the correct error.
 func TestSessionStore_Delete(t *testing.T) {
 	s := newTestSessionStore()
 
@@ -81,6 +119,8 @@ func TestSessionStore_Delete(t *testing.T) {
 	}
 }
 
+// The following test covers the idempotency of DeleteSession, ensuring that attempting to delete a non-existent
+// session does not result in an error and does not affect existing sessions.
 func TestSessionStore_Delete_NoOp(t *testing.T) {
 	s := newTestSessionStore()
 
@@ -89,6 +129,7 @@ func TestSessionStore_Delete_NoOp(t *testing.T) {
 	}
 }
 
+// The following test covers the listing functionality of ListSessions, ensuring that all sessions are returned correctly.
 func TestSessionStore_ListSessions(t *testing.T) {
 	s := newTestSessionStore()
 
@@ -113,6 +154,7 @@ func TestSessionStore_ListSessions(t *testing.T) {
 	}
 }
 
+// The following test covers the behavior of ListSessions when no sessions are stored, ensuring that it returns an empty slice without error.
 func TestSessionStore_ListSessions_Empty(t *testing.T) {
 	s := newTestSessionStore()
 
@@ -126,6 +168,8 @@ func TestSessionStore_ListSessions_Empty(t *testing.T) {
 	}
 }
 
+// The following test covers the listing functionality of ListSessionsByDockerDId,
+// ensuring that only sessions belonging to the specified Docker daemon are returned.
 func TestSessionStore_ListSessionsByDockerDId(t *testing.T) {
 	s := newTestSessionStore()
 
@@ -150,6 +194,8 @@ func TestSessionStore_ListSessionsByDockerDId(t *testing.T) {
 	}
 }
 
+// The following test covers the behavior of ListSessionsByDockerDId when no sessions exist for the specified Docker daemon,
+// ensuring that it returns an empty slice without error.
 func TestSessionStore_ListSessionsByDockerDId_Empty(t *testing.T) {
 	s := newTestSessionStore()
 
