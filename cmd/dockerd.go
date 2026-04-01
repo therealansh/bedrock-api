@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/amirhnajafiz/bedrock-api/pkg/models"
 	"github.com/amirhnajafiz/bedrock-api/pkg/zclient"
 
+	"github.com/docker/docker/client"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -74,15 +76,21 @@ func StartDockerd(cfg *configs.DockerdConfig) {
 		return
 	}
 
-	// containers manager instance
-	var cm containers.ContainerManager
+	// create Docker client and container manager
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		logr.Error("failed to create Docker client", zap.Error(err))
+		return
+	}
+	defer cli.Close()
+
+	cm := containers.NewDockerManager(cli)
 
 	// dockerd main loop
 	for {
 		time.Sleep(30 * time.Second)
 
-		// TODO: must return status of contaienrs
-		cts, err := cm.ListContainers()
+		cts, err := cm.List(context.Background())
 		if err != nil {
 			logr.Warn("failed to monitor containers", zap.Error(err))
 			continue
@@ -91,9 +99,13 @@ func StartDockerd(cfg *configs.DockerdConfig) {
 		// TODO: must refactor this based on containers data
 		sessions := make([]models.Session, 0)
 		for _, c := range cts {
+			status := enums.SessionStatusRunning
+			if !c.Running {
+				status = enums.SessionStatusFinished
+			}
 			sessions = append(sessions, models.Session{
-				Id:     c,
-				Status: enums.SessionStatusRunning,
+				Id:     c.ID,
+				Status: status,
 			})
 		}
 
