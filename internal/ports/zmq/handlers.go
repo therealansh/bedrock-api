@@ -12,7 +12,7 @@ func (z ZMQServer) socketReceiver(router *goczmq.Sock, channel chan [][]byte) {
 	for {
 		request, err := router.RecvMessage()
 		if err != nil {
-			z.logr.Warn("failed to received message", zap.Error(err))
+			z.Logr.Warn("failed to received message", zap.Error(err))
 			continue
 		}
 
@@ -24,7 +24,7 @@ func (z ZMQServer) socketReceiver(router *goczmq.Sock, channel chan [][]byte) {
 func (z ZMQServer) socketSender(router *goczmq.Sock, channel chan [][]byte) {
 	for event := range channel {
 		if err := router.SendMessage(event); err != nil {
-			z.logr.Warn("failed to send message", zap.Error(err))
+			z.Logr.Warn("failed to send message", zap.Error(err))
 			continue
 		}
 	}
@@ -36,7 +36,7 @@ func (z ZMQServer) socketHandler(in chan [][]byte, out chan [][]byte) {
 		// parse events into packets
 		pkt, err := models.PacketFromBytes(event[1])
 		if err != nil {
-			z.logr.Warn("failed to parse event", zap.Error(err))
+			z.Logr.Warn("failed to parse event", zap.Error(err))
 			continue
 		}
 
@@ -52,8 +52,8 @@ func (z ZMQServer) socketHandler(in chan [][]byte, out chan [][]byte) {
 
 		// check daemon registration
 		if val, ok := pkt.Headers["register_daemon"]; ok {
-			z.scheduler.Append(val)
-			z.logr.Info("new daemon registered", zap.String("name", val))
+			z.Scheduler.Append(val)
+			z.Logr.Info("new daemon registered", zap.String("name", val))
 
 			out <- [][]byte{event[0], responsePkt.ToBytes()}
 			continue
@@ -62,12 +62,12 @@ func (z ZMQServer) socketHandler(in chan [][]byte, out chan [][]byte) {
 		// check sender header and registration status, if invalid, reply with empty packet
 		dockerd := ""
 		if val, ok := pkt.Headers["sender"]; !ok {
-			z.logr.Warn("sender header is missing")
+			z.Logr.Warn("sender header is missing")
 
 			out <- [][]byte{event[0], responsePkt.ToBytes()}
 			continue
-		} else if !z.scheduler.Exists(val) {
-			z.logr.Warn("sender is not a registered daemon", zap.String("name", val))
+		} else if !z.Scheduler.Exists(val) {
+			z.Logr.Warn("sender is not a registered daemon", zap.String("name", val))
 
 			out <- [][]byte{event[0], responsePkt.ToBytes()}
 			continue
@@ -77,9 +77,9 @@ func (z ZMQServer) socketHandler(in chan [][]byte, out chan [][]byte) {
 
 		// read sessions from packet and update KV storage
 		for _, session := range pkt.Sessions {
-			record, err := z.ss.GetSession(session.Id, dockerd)
+			record, err := z.SessionStore.GetSession(session.Id, dockerd)
 			if err != nil {
-				z.logr.Warn(
+				z.Logr.Warn(
 					"failed to get session",
 					zap.Error(err),
 					zap.String("session id", session.Id),
@@ -92,8 +92,8 @@ func (z ZMQServer) socketHandler(in chan [][]byte, out chan [][]byte) {
 			record.Status = z.sm.Transition(record.Status, session.Status)
 
 			// update the session in KV storage
-			if err := z.ss.SaveSession(record.Id, dockerd, record); err != nil {
-				z.logr.Warn(
+			if err := z.SessionStore.SaveSession(record.Id, dockerd, record); err != nil {
+				z.Logr.Warn(
 					"failed to update session",
 					zap.Error(err),
 					zap.String("session id", session.Id),
@@ -104,9 +104,9 @@ func (z ZMQServer) socketHandler(in chan [][]byte, out chan [][]byte) {
 		}
 
 		// respond with dockerd sessions
-		sessions, err := z.ss.ListSessionsByDockerDId(dockerd)
+		sessions, err := z.SessionStore.ListSessionsByDockerDId(dockerd)
 		if err != nil {
-			z.logr.Warn("failed to list sessions", zap.Error(err))
+			z.Logr.Warn("failed to list sessions", zap.Error(err))
 
 			out <- [][]byte{event[0], responsePkt.ToBytes()}
 			continue

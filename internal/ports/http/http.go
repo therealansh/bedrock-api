@@ -14,22 +14,22 @@ import (
 
 // HTTPServer represents the HTTP server that handles incoming requests and interacts with the ZMQ server, session store, and scheduler.
 type HTTPServer struct {
-	address   string
-	logr      *zap.Logger
-	scheduler scheduler.Scheduler
-	ss        sessions.SessionStore
-	zclient   *zmqclient.ZMQClient
+	// public shared modules
+	Logr         *zap.Logger
+	Scheduler    scheduler.Scheduler
+	SessionStore sessions.SessionStore
+
+	// private modules
+	address string
+	zclient *zmqclient.ZMQClient
 }
 
 // NewHTTPServer creates and returns a new instance of HTTPServer.
-func NewHTTPServer(address, socketAddress string, logr *zap.Logger, scheduler scheduler.Scheduler, sessionStore sessions.SessionStore) *HTTPServer {
-	return &HTTPServer{
-		address:   address,
-		logr:      logr,
-		scheduler: scheduler,
-		ss:        sessionStore,
-		zclient:   zmqclient.NewZMQClient(socketAddress),
-	}
+func (h HTTPServer) Build(address, socketAddress string) *HTTPServer {
+	h.address = address
+	h.zclient = zmqclient.NewZMQClient(socketAddress)
+
+	return &h
 }
 
 func (h HTTPServer) Serve() error {
@@ -47,7 +47,7 @@ func (h HTTPServer) Serve() error {
 		LogLatency: true,
 		Skipper:    middleware.DefaultSkipper,
 		LogValuesFunc: func(c *echo.Context, values middleware.RequestLoggerValues) error {
-			h.logr.Info("request",
+			h.Logr.Info("request",
 				zap.String("uri", values.URI),
 				zap.String("method", values.Method),
 				zap.Int("status", values.Status),
@@ -70,11 +70,11 @@ func (h HTTPServer) Serve() error {
 	api.POST("/sessions/:id/logs", h.storeSessionLogs)
 
 	// log the server start information
-	h.logr.Info("server started", zap.String("address", h.address))
+	h.Logr.Info("server started", zap.String("address", h.address))
 
 	// log the registered routes
 	for _, route := range e.Router().Routes() {
-		h.logr.Info("registered route", zap.String("method", route.Method), zap.String("path", route.Path))
+		h.Logr.Info("registered route", zap.String("method", route.Method), zap.String("path", route.Path))
 	}
 
 	// start the server

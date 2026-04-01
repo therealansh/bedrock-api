@@ -45,13 +45,14 @@ func StartAPI(cfg *configs.APIConfig) {
 	// create the session store instance
 	ss := sessions.NewSessionStore(kv)
 
-	// start the ZMQ server
+	// build and start the ZMQ server
 	zmqAddress := fmt.Sprintf("tcp://%s:%d", cfg.SocketHost, cfg.SocketPort)
-	zmqServer := zmq.NewZMQServer(
+	zmqServer := zmq.ZMQServer{
+		Logr:         logr.Named("zmq"),
+		Scheduler:    rr,
+		SessionStore: ss,
+	}.Build(
 		zmqAddress,
-		logr.Named("zmq"),
-		rr,
-		ss,
 	)
 	go func() {
 		if err := zmqServer.Serve(); err != nil {
@@ -60,12 +61,13 @@ func StartAPI(cfg *configs.APIConfig) {
 	}()
 
 	// build and start the HTTP server
-	httpServer := http.NewHTTPServer(
+	httpServer := http.HTTPServer{
+		Logr:         logr.Named("http"),
+		Scheduler:    rr,
+		SessionStore: ss,
+	}.Build(
 		fmt.Sprintf("%s:%d", cfg.HTTPHost, cfg.HTTPPort),
 		zmqAddress,
-		logr.Named("http"),
-		rr,
-		ss,
 	)
 	if err := httpServer.Serve(); err != nil {
 		logr.Error("http failed", zap.Error(err))

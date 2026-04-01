@@ -14,22 +14,22 @@ import (
 // ZMQServer represents the ZeroMQ server that handles incoming messages from clients, interacts with the session store and scheduler,
 // and sends responses back to clients.
 type ZMQServer struct {
-	address   string
-	logr      *zap.Logger
-	scheduler scheduler.Scheduler
-	ss        sessions.SessionStore
-	sm        *statemachine.StateMachine
+	// public shared modules
+	Logr         *zap.Logger
+	Scheduler    scheduler.Scheduler
+	SessionStore sessions.SessionStore
+
+	// private modules
+	address string
+	sm      *statemachine.StateMachine
 }
 
-// NewZMQServer creates and returns a new instance of ZMQServer with the specified address, logger, scheduler, and session store.
-func NewZMQServer(address string, logr *zap.Logger, scheduler scheduler.Scheduler, sessionStore sessions.SessionStore) *ZMQServer {
-	return &ZMQServer{
-		address:   address,
-		logr:      logr,
-		scheduler: scheduler,
-		ss:        sessionStore,
-		sm:        statemachine.NewStateMachine(),
-	}
+// Build initializes the ZMQServer with the specified address and returns the server instance.
+func (z ZMQServer) Build(address string) *ZMQServer {
+	z.address = address
+	z.sm = statemachine.NewStateMachine()
+
+	return &z
 }
 
 func (z ZMQServer) Serve() error {
@@ -40,7 +40,7 @@ func (z ZMQServer) Serve() error {
 	}
 	defer router.Destroy()
 
-	z.logr.Info("server started", zap.String("address", z.address))
+	z.Logr.Info("server started", zap.String("address", z.address))
 
 	// start the socket receiver, handler, and sender goroutines
 	in := make(chan [][]byte)

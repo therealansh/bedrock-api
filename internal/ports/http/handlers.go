@@ -14,7 +14,7 @@ func (h HTTPServer) health(c *echo.Context) error {
 	// call the ZMQ server to check if it's alive
 	_, err := h.zclient.Send(models.NewPacket().ToBytes())
 	if err != nil {
-		h.logr.Warn("zmq server connection error", zap.Error(err))
+		h.Logr.Warn("zmq server connection error", zap.Error(err))
 		return c.String(http.StatusInternalServerError, "zmq not healthy")
 	}
 
