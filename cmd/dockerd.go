@@ -67,7 +67,7 @@ func StartDockerd(ctx context.Context, cfg *configs.DockerdConfig) error {
 				break
 			}
 
-			time.Sleep(2 * time.Second)
+			time.Sleep(cfg.APIConnectionRetryInterval)
 		}
 	} else {
 		registered = true
@@ -99,7 +99,7 @@ func StartDockerd(ctx context.Context, cfg *configs.DockerdConfig) error {
 		}
 
 		// interval between each API call
-		time.Sleep(30 * time.Second)
+		time.Sleep(cfg.PullInterval)
 
 		// get the list of containers
 		cts, err := cm.List(context.Background())
@@ -125,7 +125,7 @@ func StartDockerd(ctx context.Context, cfg *configs.DockerdConfig) error {
 		packet := models.NewPacket().WithSender(name).WithSessions(sessions...)
 
 		// send the packet to ZMQ server
-		resp, err := zclient.Send(packet.ToBytes())
+		resp, err := zclient.SendWithTimeout(packet.ToBytes(), int(cfg.APITimeout.Seconds()))
 		if err != nil {
 			logr.Warn("failed to call API", zap.Error(err))
 			continue

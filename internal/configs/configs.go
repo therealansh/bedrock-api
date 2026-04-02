@@ -3,6 +3,7 @@ package configs
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/knadh/koanf/parsers/yaml"
@@ -13,22 +14,26 @@ import (
 
 // APIConfig represents the configuration for the API server.
 type APIConfig struct {
-	LogLevel       string `koanf:"log_level" validate:"oneof=debug info warn error"`
-	HTTPHost       string `koanf:"http_host" validate:"ip"`
-	HTTPPort       int    `koanf:"http_port" validate:"min=1,max=65535"`
-	SocketHost     string `koanf:"socket_host" validate:"ip"`
-	SocketPort     int    `koanf:"socket_port" validate:"min=1,max=65535"`
-	SocketHandlers int    `koanf:"socket_handlers" validate:"min=1"`
-	FullStackMode  bool   `koanf:"full_stack_mode"`
+	LogLevel                     string        `koanf:"log_level" validate:"oneof=debug info warn error"`
+	HTTPHost                     string        `koanf:"http_host" validate:"ip"`
+	HTTPPort                     int           `koanf:"http_port" validate:"min=1,max=65535"`
+	SocketHost                   string        `koanf:"socket_host" validate:"ip"`
+	SocketPort                   int           `koanf:"socket_port" validate:"min=1,max=65535"`
+	SocketHandlers               int           `koanf:"socket_handlers" validate:"min=1"`
+	FullStackMode                bool          `koanf:"full_stack_mode"`
+	SchedulerHealthCheckInterval time.Duration `koanf:"scheduler_health_check_interval" validate:"duration"`
 }
 
 // DockerdConfig represents the configuration for the Docker Daemon.
 type DockerdConfig struct {
-	Name                string `koanf:"name"`
-	LogLevel            string `koanf:"log_level" validate:"oneof=debug info warn error"`
-	APISocketHost       string `koanf:"api_socket_host" validate:"ip"`
-	APISocketPort       int    `koanf:"api_socket_port" validate:"min=1,max=65535"`
-	APIConnectionRetrys int    `koanf:"api_connection_retrys" validate:"min=1"`
+	Name                       string        `koanf:"name"`
+	LogLevel                   string        `koanf:"log_level" validate:"oneof=debug info warn error"`
+	APISocketHost              string        `koanf:"api_socket_host" validate:"ip"`
+	APISocketPort              int           `koanf:"api_socket_port" validate:"min=1,max=65535"`
+	APIConnectionRetrys        int           `koanf:"api_connection_retrys" validate:"min=1"`
+	APIConnectionRetryInterval time.Duration `koanf:"api_connection_retry_interval" validate:"duration"`
+	APITimeout                 time.Duration `koanf:"api_timeout" validate:"duration"`
+	PullInterval               time.Duration `koanf:"pull_interval" validate:"duration"`
 }
 
 // FileMDConfig represents the configuration for the File Management Daemon.
