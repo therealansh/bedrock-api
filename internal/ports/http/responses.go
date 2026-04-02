@@ -31,3 +31,15 @@ func ToResponseSession(session *models.Session) *ResponseSession {
 		Status: session.Status.String(),
 	}
 }
+
+// LogFileResponse represents a single log file in the GET /sessions/:id/logs response.
+type LogFileResponse struct {
+	Filename string `json:"filename"`
+	Content  []byte `json:"content"`
+}
+
+// SessionLogsResponse is the envelope for the GET /sessions/:id/logs endpoint.
+type SessionLogsResponse struct {
+	SessionID string            `json:"session_id"`
+	Files     []LogFileResponse `json:"files"`
+}
