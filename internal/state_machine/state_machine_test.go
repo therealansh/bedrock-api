@@ -3,7 +3,7 @@ package statemachine_test
 import (
 	"testing"
 
-	statemachine "github.com/amirhnajafiz/bedrock-api/internal/components/state_machine"
+	statemachine "github.com/amirhnajafiz/bedrock-api/internal/state_machine"
 	"github.com/amirhnajafiz/bedrock-api/pkg/enums"
 )
 
@@ -17,9 +17,12 @@ func TestStateMachine(t *testing.T) {
 		{enums.SessionStatusPending, enums.SessionStatusRunning, enums.SessionStatusRunning},
 		{enums.SessionStatusPending, enums.SessionStatusFailed, enums.SessionStatusFailed},
 		{enums.SessionStatusPending, enums.SessionStatusStopped, enums.SessionStatusStopped},
+		{enums.SessionStatusPending, enums.SessionStatusFinished, enums.SessionStatusFinished},
 		{enums.SessionStatusRunning, enums.SessionStatusFailed, enums.SessionStatusFailed},
 		{enums.SessionStatusRunning, enums.SessionStatusStopped, enums.SessionStatusStopped},
-		{enums.SessionStatusFailed, enums.SessionStatusRunning, enums.SessionStatusFailed},
+		{enums.SessionStatusRunning, enums.SessionStatusFinished, enums.SessionStatusFinished},
+		{enums.SessionStatusStopped, enums.SessionStatusRunning, enums.SessionStatusStopped},
+		{enums.SessionStatusFailed, enums.SessionStatusPending, enums.SessionStatusFailed},
 		{enums.SessionStatusFinished, enums.SessionStatusStopped, enums.SessionStatusFinished},
 	}
 

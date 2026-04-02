@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/amirhnajafiz/bedrock-api/internal/components/sessions"
-	statemachine "github.com/amirhnajafiz/bedrock-api/internal/components/state_machine"
 	"github.com/amirhnajafiz/bedrock-api/internal/scheduler"
+	statemachine "github.com/amirhnajafiz/bedrock-api/internal/state_machine"
 
 	"github.com/zeromq/goczmq"
 	"go.uber.org/zap"
