@@ -49,18 +49,18 @@ func (z ZMQServer) Serve() error {
 	z.Logr.Info("server started", zap.String("address", z.address))
 
 	// create an errgroup with the provided context
-	erg, _ := errgroup.WithContext(z.ctx)
+	erg, ctx := errgroup.WithContext(z.ctx)
 
 	// start the socket receiver, handler, and sender goroutines
 	in := make(chan [][]byte)
 	out := make(chan [][]byte)
 
-	erg.Go(func() error { return z.socketReceiver(router, in) })
-	erg.Go(func() error { return z.socketSender(router, out) })
+	erg.Go(func() error { return z.socketReceiver(ctx, router, in) })
+	erg.Go(func() error { return z.socketSender(ctx, router, out) })
 
 	// main loop to handle incoming messages and send responses
 	for i := 0; i < z.handlers; i++ {
-		erg.Go(func() error { return z.socketHandler(in, out) })
+		erg.Go(func() error { return z.socketHandler(ctx, in, out) })
 	}
 
 	return erg.Wait()
