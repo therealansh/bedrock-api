@@ -67,6 +67,10 @@ func (m *mockDockerClient) ContainerLogs(ctx context.Context, ctr string, option
 	return io.NopCloser(&bytes.Buffer{}), nil
 }
 
+func (m *mockDockerClient) ContainerInspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
+	return container.InspectResponse{}, nil
+}
+
 // newMockLogReader returns an io.ReadCloser whose content is encoded in the
 // Docker multiplexed stream format so that stdcopy.StdCopy can decode it.
 func newMockLogReader(content string) io.ReadCloser {

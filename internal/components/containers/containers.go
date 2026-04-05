@@ -17,6 +17,7 @@ type ContainerClient interface {
 	ContainerRemove(ctx context.Context, containerID string, options container.RemoveOptions) error
 	ContainerList(ctx context.Context, options container.ListOptions) ([]container.Summary, error)
 	ContainerLogs(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
+	ContainerInspect(ctx context.Context, containerID string) (containerJSON container.InspectResponse, err error)
 }
 
 // ContainerConfig holds the parameters needed to create a container.
@@ -45,6 +46,6 @@ type ContainerInfo struct {
 	Image string
 	// Current status of the container, e.g. "running", "exited".
 	Status string
-	// Exit code if the container has finished, or nil if still running.
-	ExitCode *int
+	// Exit code if the container has finished.
+	ExitCode int
 }

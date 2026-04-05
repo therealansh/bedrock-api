@@ -36,6 +36,18 @@ func (m *dockerManager) Create(ctx context.Context, cfg ContainerConfig) (string
 		})
 	}
 
+	hostConfig := &container.HostConfig{
+		AutoRemove:    false,
+		Mounts:        mounts,
+		RestartPolicy: container.RestartPolicy{Name: "never"},
+	}
+	if privileged, ok := cfg.Flags["privileged"].(bool); ok && privileged {
+		hostConfig.Privileged = true
+	}
+	if pidMode, ok := cfg.Flags["pid"].(string); ok {
+		hostConfig.PidMode = container.PidMode(pidMode)
+	}
+
 	resp, err := m.client.ContainerCreate(
 		ctx,
 		&container.Config{
@@ -46,9 +58,7 @@ func (m *dockerManager) Create(ctx context.Context, cfg ContainerConfig) (string
 				labelManagedBy: labelValue,
 			},
 		},
-		&container.HostConfig{
-			Mounts: mounts,
-		},
+		hostConfig,
 		nil, nil, cfg.Name,
 	)
 	if err != nil {
@@ -104,12 +114,23 @@ func (m *dockerManager) List(ctx context.Context) ([]ContainerInfo, error) {
 		if len(c.Names) > 0 {
 			name = strings.TrimPrefix(c.Names[0], "/")
 		}
-		infos = append(infos, ContainerInfo{
+
+		cinfo := ContainerInfo{
 			ID:     c.ID,
 			Name:   name,
 			Image:  c.Image,
 			Status: c.Status,
-		})
+		}
+
+		// call ContainerInspect to get the exit code if the container has finished
+		if inspect, err := m.client.ContainerInspect(ctx, c.ID); err == nil {
+			if inspect.State != nil && !inspect.State.Running {
+				exitCode := int(inspect.State.ExitCode)
+				cinfo.ExitCode = exitCode
+			}
+		}
+
+		infos = append(infos, cinfo)
 	}
 
 	return infos, nil
@@ -123,4 +144,9 @@ func (m *dockerManager) Stop(ctx context.Context, containerID string) error {
 // Remove removes a container.
 func (m *dockerManager) Remove(ctx context.Context, containerID string) error {
 	return m.client.ContainerRemove(ctx, containerID, container.RemoveOptions{})
+}
+
+// Inspect returns detailed information about a container, including its exit code if it has finished.
+func (m *dockerManager) Inspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
+	return m.client.ContainerInspect(ctx, containerID)
 }

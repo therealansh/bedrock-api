@@ -84,8 +84,8 @@ func StartDockerd(ctx context.Context, cfg *configs.DockerdConfig) error {
 		sessions := make([]models.Session, 0)
 		for _, c := range cts {
 			status := enums.SessionStatusRunning
-			if c.ExitCode != nil {
-				if *c.ExitCode == 0 {
+			if c.Status != "running" {
+				if c.ExitCode == 0 {
 					status = enums.SessionStatusFinished
 				} else {
 					status = enums.SessionStatusFailed
