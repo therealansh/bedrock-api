@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/stdcopy"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -13,13 +14,15 @@ import (
 
 // mockDockerClient implements dockerManager client for unit testing.
 type mockDockerClient struct {
-	createFn  func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error)
-	startFn   func(ctx context.Context, containerID string, options container.StartOptions) error
-	stopFn    func(ctx context.Context, containerID string, options container.StopOptions) error
-	removeFn  func(ctx context.Context, containerID string, options container.RemoveOptions) error
-	listFn    func(ctx context.Context, options container.ListOptions) ([]container.Summary, error)
-	logsFn    func(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
-	inspectFn func(ctx context.Context, containerID string) (container.InspectResponse, error)
+	createFn     func(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error)
+	startFn      func(ctx context.Context, containerID string, options container.StartOptions) error
+	stopFn       func(ctx context.Context, containerID string, options container.StopOptions) error
+	removeFn     func(ctx context.Context, containerID string, options container.RemoveOptions) error
+	listFn       func(ctx context.Context, options container.ListOptions) ([]container.Summary, error)
+	logsFn       func(ctx context.Context, container string, options container.LogsOptions) (io.ReadCloser, error)
+	inspectFn    func(ctx context.Context, containerID string) (container.InspectResponse, error)
+	imageCheckFn func(ctx context.Context, image string) (image.InspectResponse, []byte, error)
+	imagePullFn  func(ctx context.Context, refStr string, options image.PullOptions) (io.ReadCloser, error)
 }
 
 func (m *mockDockerClient) ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, platform *ocispec.Platform, containerName string) (container.CreateResponse, error) {
@@ -69,6 +72,20 @@ func (m *mockDockerClient) ContainerInspect(ctx context.Context, containerID str
 		return m.inspectFn(ctx, containerID)
 	}
 	return container.InspectResponse{}, nil
+}
+
+func (m *mockDockerClient) ImageInspectWithRaw(ctx context.Context, imageName string) (image.InspectResponse, []byte, error) {
+	if m.imageCheckFn != nil {
+		return m.imageCheckFn(ctx, imageName)
+	}
+	return image.InspectResponse{}, nil, nil
+}
+
+func (m *mockDockerClient) ImagePull(ctx context.Context, refStr string, options image.PullOptions) (io.ReadCloser, error) {
+	if m.imagePullFn != nil {
+		return m.imagePullFn(ctx, refStr, options)
+	}
+	return io.NopCloser(&bytes.Buffer{}), nil
 }
 
 // newMockLogReader returns an io.ReadCloser whose content is encoded in the

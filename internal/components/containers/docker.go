@@ -2,13 +2,17 @@ package containers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/stdcopy"
 )
@@ -28,6 +32,36 @@ type dockerManager struct {
 // Start pulls together the container configuration from cfg, creates the
 // container on the Docker host, and starts it.
 func (m *dockerManager) Start(ctx context.Context, cfg *ContainerConfig) (string, error) {
+	// pull only when the image is not available locally.
+	if _, _, err := m.client.ImageInspectWithRaw(ctx, cfg.Image); err != nil {
+		if !cerrdefs.IsNotFound(err) {
+			return "", fmt.Errorf("failed to inspect image: %w", err)
+		}
+
+		// image not found locally, attempt to pull it
+		pullReader, err := m.client.ImagePull(ctx, cfg.Image, image.PullOptions{})
+		if err != nil {
+			return "", fmt.Errorf("failed to pull image: %w", err)
+		}
+		defer pullReader.Close()
+
+		// read the pull output to completion to ensure the image is fully pulled
+		decoder := json.NewDecoder(pullReader)
+		for {
+			var msg map[string]any
+			if err := decoder.Decode(&msg); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return "", fmt.Errorf("failed reading pull stream: %w", err)
+			}
+
+			if e, ok := msg["error"]; ok {
+				return "", fmt.Errorf("daemon pull error: %v", e)
+			}
+		}
+	}
+
 	// set up volume mounts
 	var mounts []mount.Mount
 	for hostPath, containerPath := range cfg.Volumes {

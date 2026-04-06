@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -22,9 +24,20 @@ func TestDockerManager_Start(t *testing.T) {
 			capturedHost   *container.HostConfig
 			capturedName   string
 			startedID      string
+			pullCalled     bool
 		)
 
 		mock := &mockDockerClient{
+			imageCheckFn: func(_ context.Context, imageName string) (image.InspectResponse, []byte, error) {
+				if imageName != "alpine:latest" {
+					t.Fatalf("inspected image = %q, want %q", imageName, "alpine:latest")
+				}
+				return image.InspectResponse{}, nil, nil
+			},
+			imagePullFn: func(_ context.Context, _ string, _ image.PullOptions) (io.ReadCloser, error) {
+				pullCalled = true
+				return io.NopCloser(strings.NewReader("")), nil
+			},
 			createFn: func(_ context.Context, config *container.Config, hostConfig *container.HostConfig, _ *network.NetworkingConfig, _ *ocispec.Platform, name string) (container.CreateResponse, error) {
 				capturedConfig = config
 				capturedHost = hostConfig
@@ -62,6 +75,9 @@ func TestDockerManager_Start(t *testing.T) {
 		if startedID != "abc123" {
 			t.Fatalf("started id = %q, want %q", startedID, "abc123")
 		}
+		if pullCalled {
+			t.Fatal("image pull should not be called when image already exists locally")
+		}
 
 		if capturedName != "my-container" {
 			t.Errorf("container name = %q, want %q", capturedName, "my-container")
@@ -90,6 +106,34 @@ func TestDockerManager_Start(t *testing.T) {
 		}
 		if string(capturedHost.PidMode) != "host" {
 			t.Errorf("pid mode = %q, want %q", string(capturedHost.PidMode), "host")
+		}
+	})
+
+	t.Run("pulls image when it does not exist locally", func(t *testing.T) {
+		pulledRef := ""
+
+		mock := &mockDockerClient{
+			imageCheckFn: func(_ context.Context, _ string) (image.InspectResponse, []byte, error) {
+				return image.InspectResponse{}, nil, errdefs.NotFound(errors.New("no such image"))
+			},
+			imagePullFn: func(_ context.Context, ref string, _ image.PullOptions) (io.ReadCloser, error) {
+				pulledRef = ref
+				return io.NopCloser(strings.NewReader("pulling\n")), nil
+			},
+			createFn: func(_ context.Context, _ *container.Config, _ *container.HostConfig, _ *network.NetworkingConfig, _ *ocispec.Platform, _ string) (container.CreateResponse, error) {
+				return container.CreateResponse{ID: "id1"}, nil
+			},
+		}
+
+		mgr := &dockerManager{client: mock}
+
+		_, err := mgr.Start(context.Background(), &ContainerConfig{Name: "simple", Image: "busybox:latest"})
+		if err != nil {
+			t.Fatalf("Start returned unexpected error: %v", err)
+		}
+
+		if pulledRef != "busybox:latest" {
+			t.Fatalf("pulled ref = %q, want %q", pulledRef, "busybox:latest")
 		}
 	})
 
