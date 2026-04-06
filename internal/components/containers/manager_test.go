@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	cerrdefs "github.com/containerd/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errdefs"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -114,11 +114,13 @@ func TestDockerManager_Start(t *testing.T) {
 
 		mock := &mockDockerClient{
 			imageCheckFn: func(_ context.Context, _ string) (image.InspectResponse, []byte, error) {
-				return image.InspectResponse{}, nil, errdefs.NotFound(errors.New("no such image"))
+				return image.InspectResponse{}, nil, cerrdefs.ErrNotFound
 			},
 			imagePullFn: func(_ context.Context, ref string, _ image.PullOptions) (io.ReadCloser, error) {
 				pulledRef = ref
-				return io.NopCloser(strings.NewReader("pulling\n")), nil
+
+				// docker pull streams are newline-delimited JSON objects.
+				return io.NopCloser(strings.NewReader("{\"status\":\"Pulling from library/busybox\"}\n{\"status\":\"Digest: sha256:abc\"}\n{\"status\":\"Downloaded newer image\"}\n")), nil
 			},
 			createFn: func(_ context.Context, _ *container.Config, _ *container.HostConfig, _ *network.NetworkingConfig, _ *ocispec.Platform, _ string) (container.CreateResponse, error) {
 				return container.CreateResponse{ID: "id1"}, nil
