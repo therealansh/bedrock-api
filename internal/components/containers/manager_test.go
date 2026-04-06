@@ -29,7 +29,7 @@ func TestCreate(t *testing.T) {
 
 	mgr := &dockerManager{client: mock}
 
-	id, err := mgr.Create(context.Background(), ContainerConfig{
+	id, err := mgr.Start(context.Background(), ContainerConfig{
 		Name:  "my-container",
 		Image: "alpine:latest",
 		Env:   []string{"FOO=bar"},
@@ -82,16 +82,16 @@ func TestCreate_NoVolumes(t *testing.T) {
 
 	mgr := &dockerManager{client: mock}
 
-	_, err := mgr.Create(context.Background(), ContainerConfig{
+	_, err := mgr.Start(context.Background(), ContainerConfig{
 		Name:  "simple",
 		Image: "alpine",
 	})
 	if err != nil {
-		t.Fatalf("Create no volumes: unexpected error: %v", err)
+		t.Fatalf("Start no volumes: unexpected error: %v", err)
 	}
 }
 
-func TestCreate_CreateError(t *testing.T) {
+func TestStart_StartError(t *testing.T) {
 	mock := &mockDockerClient{
 		createFn: func(context.Context, *container.Config, *container.HostConfig, *network.NetworkingConfig, *ocispec.Platform, string) (container.CreateResponse, error) {
 			return container.CreateResponse{}, errors.New("image not found")
@@ -100,16 +100,16 @@ func TestCreate_CreateError(t *testing.T) {
 
 	mgr := &dockerManager{client: mock}
 
-	_, err := mgr.Create(context.Background(), ContainerConfig{Image: "missing:latest"})
+	_, err := mgr.Start(context.Background(), ContainerConfig{Image: "missing:latest"})
 	if err == nil {
-		t.Fatal("Create with bad image: expected error, got nil")
+		t.Fatal("Start with bad image: expected error, got nil")
 	}
 	if err.Error() != "image not found" {
-		t.Errorf("Create with bad image: got %q, want %q", err.Error(), "image not found")
+		t.Errorf("Start with bad image: got %q, want %q", err.Error(), "image not found")
 	}
 }
 
-func TestCreate_StartErrorCleansUp(t *testing.T) {
+func TestStart_StartErrorCleansUp(t *testing.T) {
 	removeCalled := false
 	removedID := ""
 
@@ -129,16 +129,16 @@ func TestCreate_StartErrorCleansUp(t *testing.T) {
 
 	mgr := &dockerManager{client: mock}
 
-	_, err := mgr.Create(context.Background(), ContainerConfig{Image: "alpine"})
+	_, err := mgr.Start(context.Background(), ContainerConfig{Image: "alpine"})
 	if err == nil {
-		t.Fatal("Create with start failure: expected error, got nil")
+		t.Fatal("Start with start failure: expected error, got nil")
 	}
 
 	if !removeCalled {
-		t.Error("Create with start failure: expected cleanup Remove call")
+		t.Error("Start with start failure: expected cleanup Remove call")
 	}
 	if removedID != "created-id" {
-		t.Errorf("Create with start failure: removed %q, want %q", removedID, "created-id")
+		t.Errorf("Start with start failure: removed %q, want %q", removedID, "created-id")
 	}
 }
 

@@ -145,7 +145,7 @@ func startContainersForSession(cm containers.ContainerManager, session models.Se
 	}
 
 	// start the tracer container
-	if _, err := cm.Create(
+	if _, err := cm.Start(
 		context.Background(),
 		containers.ContainerConfig{
 			Name:  tracer,
@@ -173,7 +173,7 @@ func startContainersForSession(cm containers.ContainerManager, session models.Se
 	}
 
 	// start the target container
-	if _, err := cm.Create(
+	if _, err := cm.Start(
 		context.Background(),
 		containers.ContainerConfig{
 			Name:  target,

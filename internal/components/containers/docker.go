@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -23,9 +24,9 @@ type dockerManager struct {
 	client ContainerClient
 }
 
-// Create pulls together the container configuration from cfg, creates the
+// Start pulls together the container configuration from cfg, creates the
 // container on the Docker host, and starts it.
-func (m *dockerManager) Create(ctx context.Context, cfg ContainerConfig) (string, error) {
+func (m *dockerManager) Start(ctx context.Context, cfg ContainerConfig) (string, error) {
 	// set up volume mounts
 	var mounts []mount.Mount
 	for hostPath, containerPath := range cfg.Volumes {
@@ -122,13 +123,12 @@ func (m *dockerManager) List(ctx context.Context) ([]ContainerInfo, error) {
 
 		// create a container info instance
 		cinfo := ContainerInfo{
-			ID:        c.ID,
-			Name:      name,
-			Image:     c.Image,
-			Status:    c.Status,
-			Exited:    false,
-			ExitCode:  0,
-			CreatedAt: c.Created,
+			ID:       c.ID,
+			Name:     name,
+			Image:    c.Image,
+			Status:   c.Status,
+			Exited:   false,
+			ExitCode: 0,
 		}
 
 		// call ContainerInspect to get the exit code if the container has finished
@@ -137,12 +137,51 @@ func (m *dockerManager) List(ctx context.Context) ([]ContainerInfo, error) {
 				cinfo.Exited = true
 				cinfo.ExitCode = int(inspect.State.ExitCode)
 			}
+
+			// convert the inspect created time string to a timestamp
+			createdAt, err := time.Parse(time.RFC3339, inspect.Created)
+			if err != nil {
+				return nil, err
+			}
+
+			cinfo.CreatedAt = createdAt
 		}
 
 		infos = append(infos, cinfo)
 	}
 
 	return infos, nil
+}
+
+// Get returns information about a specific container, including its exit code if it has finished.
+func (m *dockerManager) Get(ctx context.Context, containerID string) (ContainerInfo, error) {
+	inspect, err := m.client.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return ContainerInfo{}, err
+	}
+
+	name := ""
+	if len(inspect.Name) > 0 {
+		name = strings.TrimPrefix(inspect.Name, "/")
+	}
+
+	// convert the inspect created time string to a timestamp
+	createdAt, err := time.Parse(time.RFC3339, inspect.Created)
+	if err != nil {
+		return ContainerInfo{}, err
+	}
+
+	cinfo := ContainerInfo{
+		ID:        inspect.ID,
+		Name:      name,
+		Image:     inspect.Config.Image,
+		Status:    inspect.State.Status,
+		Exited:    !inspect.State.Running,
+		ExitCode:  int(inspect.State.ExitCode),
+		CreatedAt: createdAt,
+	}
+
+	return cinfo, nil
 }
 
 // Stop stops a running container.

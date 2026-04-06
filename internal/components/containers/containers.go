@@ -3,6 +3,7 @@ package containers
 import (
 	"context"
 	"io"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -51,5 +52,5 @@ type ContainerInfo struct {
 	// Exit code if the container has finished.
 	ExitCode int
 	// Creation timestamp of the container.
-	CreatedAt int64
+	CreatedAt time.Time
 }
