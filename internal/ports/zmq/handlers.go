@@ -106,7 +106,7 @@ func (z ZMQServer) processEvent(event [][]byte) [][]byte {
 		record.Status = z.stateMachine.Transition(record.Status, session.Status)
 
 		// update the session in KV storage
-		if err := z.sessionStore.SaveSession(record.Id, dockerd, record); err != nil {
+		if err := z.sessionStore.SaveSession(record); err != nil {
 			z.Logr.Warn(
 				"failed to update session",
 				zap.Error(err),

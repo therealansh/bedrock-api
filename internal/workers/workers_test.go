@@ -22,7 +22,9 @@ func TestWorkerCheckExpiredSessions(t *testing.T) {
 
 	// create a session store and add some sessions with different TTLs
 	ss := sessions.NewSessionStore(storage.NewGoCache())
-	ss.SaveSession("1", "d1", &models.Session{
+	ss.SaveSession(&models.Session{
+		Id:        "1",
+		DockerDId: "d1",
 		CreatedAt: time.Now(),
 		Spec: models.Spec{
 			TTL: 2 * time.Second,

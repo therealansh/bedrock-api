@@ -10,7 +10,7 @@ type SessionStore interface {
 	// SaveSession persists raw session bytes under the given id, namespaced by
 	// the owning Docker daemon's id. Calling SaveSession with the same id and
 	// dockerdId overwrites the entry.
-	SaveSession(id, dockerdId string, data *models.Session) error
+	SaveSession(data *models.Session) error
 
 	// GetSession retrieves the raw bytes for id within the given dockerdId namespace.
 	// Returns ErrNotFound when absent.

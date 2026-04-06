@@ -27,16 +27,13 @@ func sessionKey(dockerdId, id string) string {
 }
 
 // SaveSession persists raw session bytes under id, namespaced by dockerdId.
-func (s *sessionStore) SaveSession(id, dockerdId string, data *models.Session) error {
-	data.Id = id
-	data.DockerDId = dockerdId
-
+func (s *sessionStore) SaveSession(data *models.Session) error {
 	bytes, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
-	return s.backend.Set(sessionKey(dockerdId, id), bytes)
+	return s.backend.Set(sessionKey(data.DockerDId, data.Id), bytes)
 }
 
 // GetSession retrieves the raw bytes for id within the given dockerdId namespace.
