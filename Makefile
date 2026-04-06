@@ -60,7 +60,7 @@ test:
 
 e2e:
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) \
-		$(GO) test -v -tags=e2e ./...
+		$(GO) test -tags=e2e ./tests/e2e/
 
 clean:
 	rm -f $(APP_NAME)
