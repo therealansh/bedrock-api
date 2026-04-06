@@ -1,5 +1,4 @@
 //go:build e2e
-// +build e2e
 
 package e2e
 
@@ -10,10 +9,10 @@ import (
 	"github.com/amirhnajafiz/bedrock-api/internal/components/containers"
 )
 
-// TestContainers tests the container management functionality of the DockerD.
+// TestDockerManager tests the docker container management functionality of the DockerD.
 // It creates a container, checks if it's running, stops it, checks if it's stopped, stores the logs, and finally removes the container.
 // Note: This test requires Docker to be installed and running on the host machine.
-func TestContainers(t *testing.T) {
+func TestDockerManager(t *testing.T) {
 	// create a context
 	ctx := t.Context()
 	defer ctx.Done()
@@ -89,6 +88,12 @@ func TestContainers(t *testing.T) {
 		t.Errorf("log file not found")
 	} else {
 		t.Logf("log file created successfully")
+	}
+
+	// clean up the log file
+	err = os.Remove("/tmp/nginx-logs.txt")
+	if err != nil {
+		t.Errorf("failed to remove log file: %v", err)
 	}
 
 	// remove the nginx container
