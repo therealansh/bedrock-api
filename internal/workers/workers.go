@@ -46,7 +46,7 @@ func WorkerCheckExpiredSessions(ctx context.Context, logr *zap.Logger, interval 
 
 // WorkerDockerDHealthCheck continuously checks the health status of Docker daemons by listening to an input channel
 // for updates and using a ticker to periodically remove stale entries from the health map.
-func WorkerDockerDHealthCheck(ctx context.Context, input chan string, interval time.Duration) {
+func WorkerDockerDHealthCheck(ctx context.Context, input chan string, logr *zap.Logger, interval time.Duration) {
 	// get a reference to the scheduler instance
 	scheduler := scheduler.NewRoundRobin()
 
@@ -71,6 +71,7 @@ func WorkerDockerDHealthCheck(ctx context.Context, input chan string, interval t
 			// loop through the healthMap and remove any entries that haven't been updated within the interval
 			for dockerd, lastUpdated := range healthMap {
 				if timeSnapshot.Sub(lastUpdated) > interval {
+					logr.Warn("removing stale Docker daemon from health map", zap.String("dockerd", dockerd))
 					delete(healthMap, dockerd)
 					scheduler.Drop(dockerd)
 				}

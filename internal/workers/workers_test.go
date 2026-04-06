@@ -55,6 +55,9 @@ func TestWorkerDockerDHealthCheck(t *testing.T) {
 	// create a context
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// create a new logger instance
+	logr := logger.New("info")
+
 	// create a channel to simulate Docker daemon health updates
 	input := make(chan string)
 
@@ -62,7 +65,7 @@ func TestWorkerDockerDHealthCheck(t *testing.T) {
 	sc := scheduler.NewRoundRobin()
 
 	// start the WorkerDockerDHealthCheck in a separate goroutine
-	go workers.WorkerDockerDHealthCheck(ctx, input, 3*time.Second)
+	go workers.WorkerDockerDHealthCheck(ctx, input, logr.Named("dockerd-health"), 3*time.Second)
 
 	// simulate sending health updates for Docker daemons
 	input <- "dockerd1"

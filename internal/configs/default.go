@@ -14,6 +14,7 @@ func Default() *Config {
 			SocketHandlers:             1,
 			FullStackMode:              false,
 			DockerDHealthCheckInterval: 1 * time.Minute,
+			SessionStatusCheckInterval: 30 * time.Second,
 		},
 		Dockerd: &DockerdConfig{
 			Name:          "hostname",

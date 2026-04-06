@@ -22,6 +22,7 @@ type APIConfig struct {
 	SocketHandlers             int           `koanf:"socket_handlers" validate:"min=1"`
 	FullStackMode              bool          `koanf:"full_stack_mode"`
 	DockerDHealthCheckInterval time.Duration `koanf:"dockerd_health_check_interval" validate:"duration"`
+	SessionStatusCheckInterval time.Duration `koanf:"session_status_check_interval" validate:"duration"`
 }
 
 // DockerdConfig represents the configuration for the Docker Daemon.

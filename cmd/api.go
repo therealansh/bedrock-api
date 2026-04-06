@@ -73,11 +73,11 @@ func StartAPI(ctx context.Context, cfg *configs.APIConfig) error {
 	// start the workers
 	dockerdHealthChannel := make(chan string)
 	erg.Go(func() error {
-		workers.WorkerDockerDHealthCheck(ctx, dockerdHealthChannel, cfg.DockerDHealthCheckInterval)
+		workers.WorkerDockerDHealthCheck(ctx, dockerdHealthChannel, logr.Named("dockerd-health"), cfg.DockerDHealthCheckInterval)
 		return nil
 	})
 	erg.Go(func() error {
-		workers.WorkerCheckExpiredSessions(ctx, logr.Named("session-worker"), 10*time.Second)
+		workers.WorkerCheckExpiredSessions(ctx, logr.Named("session-worker"), cfg.SessionStatusCheckInterval)
 		return nil
 	})
 
