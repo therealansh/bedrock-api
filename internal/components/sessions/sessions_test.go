@@ -229,3 +229,26 @@ func TestSessionStore_ListSessionsByDockerDId_Empty(t *testing.T) {
 		t.Errorf("ListSessionsByDockerDId unknown daemon: got %d entries, want 0", len(d2Sessions))
 	}
 }
+
+// The following test covers the id-only retrieval functionality of GetSessionById across daemon namespaces,
+// ensuring that a session can be retrieved by id without specifying the dockerdId and that the correct session
+// is returned when multiple sessions with the same id exist under different dockerdIds.
+func TestSessionStore_GetSessionById(t *testing.T) {
+	s := newTestSessionStore()
+
+	_ = s.SaveSession(&models.Session{Id: "s1", DockerDId: "d1", Spec: models.Spec{Image: "a"}})
+
+	session, err := s.GetSessionById("s1")
+	if err != nil {
+		t.Fatalf("GetSessionById: %v", err)
+	}
+
+	if session.Id != "s1" {
+		t.Errorf("GetSessionById: got %q, want %q", session.Id, "s1")
+	}
+
+	session, err = s.GetSessionById("s2")
+	if !errors.Is(err, xerrors.StorageErrNotFound) {
+		t.Errorf("GetSessionById missing: got %v, want xerrors.StorageErrNotFound", err)
+	}
+}
