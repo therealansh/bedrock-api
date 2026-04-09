@@ -6,6 +6,7 @@ import (
 	"github.com/amirhnajafiz/bedrock-api/internal/components/sessions"
 	zmqclient "github.com/amirhnajafiz/bedrock-api/internal/components/zmq_client"
 	"github.com/amirhnajafiz/bedrock-api/internal/scheduler"
+	"github.com/amirhnajafiz/bedrock-api/internal/state_machine"
 	"github.com/amirhnajafiz/bedrock-api/internal/storage"
 
 	"github.com/labstack/echo/v5"
@@ -23,6 +24,7 @@ type HTTPServer struct {
 	scheduler    scheduler.Scheduler
 	sessionStore sessions.SessionStore
 	zclient      *zmqclient.ZMQClient
+	stateMachine *statemachine.StateMachine
 }
 
 // NewHTTPServer creates and returns a new instance of HTTPServer.
@@ -32,6 +34,7 @@ func (h HTTPServer) Build(address, socketAddress string) *HTTPServer {
 	h.scheduler = scheduler.NewRoundRobin()
 	h.sessionStore = sessions.NewSessionStore(storage.NewGoCache())
 	h.zclient = zmqclient.NewZMQClient(socketAddress)
+	h.stateMachine = statemachine.NewStateMachine()
 
 	return &h
 }

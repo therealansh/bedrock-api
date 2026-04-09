@@ -1,6 +1,6 @@
 # Bedrock API
 
-![Coverage](https://img.shields.io/badge/coverage-37.6%25-red)
+![Coverage](https://img.shields.io/badge/coverage-38.6%25-red)
 
 **Bedrock API** is an HTTP service that coordinates **Bedrock tracing workloads** through REST APIs and internal event-driven communication.
 
@@ -212,6 +212,40 @@ Creates:
 
 * new session and assigns a DockerD
 
+Request body (application/json):
+
+```json
+{
+  "image": "<docker-image>",
+  "command": "<command-to-run>",
+  "ttl": "<duration>"
+}
+```
+
+Fields:
+
+* image (string) - Docker image to run (e.g. "nginx:stable").
+* command (string) - space-separated command string that will be split on spaces and passed to the container as an argv list.
+* ttl (integer) - session time-to-live in seconds; DockerD will stop the session after this duration if it hasn't finished.
+
+Example: start a short-lived nginx session
+
+```json
+{
+  "image": "nginx:stable",
+  "command": "nginx -g 'daemon off;'",
+  "ttl": "24h"
+}
+```
+
+Example curl (create session):
+
+```sh
+curl -X POST http://localhost:8080/api/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"image":"nginx:stable","command":"nginx -g \'daemon off;\'","ttl":60}'
+```
+
 ### Stop Session
 
 ```http
@@ -222,6 +256,31 @@ Creates:
 
 * patch event for DockerD
 
+Request body (application/json):
+
+```json
+{ "status": "<status>" }
+```
+
+Notes:
+
+* Only the `status` field is read by the API for updates. Valid status values are: `pending`, `running`, `stopped`, `finished`, `failed`.
+* The server enforces a state-machine when applying status changes; invalid transitions will return HTTP 400.
+
+Example: stop a running session
+
+```json
+{ "status": "stopped" }
+```
+
+Example curl (stop session):
+
+```sh
+curl -X PUT http://localhost:8080/api/sessions/<session-id> \
+  -H "Content-Type: application/json" \
+  -d '{"status":"stopped"}'
+```
+
 ### List Sessions
 
 ```http
@@ -229,6 +288,30 @@ GET /api/sessions
 ```
 
 Returns all sessions from KV storage.
+
+Request body: none
+
+Response (application/json): array of Session objects. Each Session has the shape:
+
+```json
+{
+  "id": "<uuid>",
+  "dockerd_id": "<dockerd-id>",
+  "created_at": "<timestamp>",
+  "status": "<status>",
+  "spec": {
+    "image": "<docker-image>",
+    "command": "<command-string>",
+    "ttl": <seconds>
+  }
+}
+```
+
+Example curl (list sessions):
+
+```sh
+curl -X GET http://localhost:8080/api/sessions
+```
 
 ### Get Session Logs
 
@@ -238,6 +321,14 @@ GET /api/sessions/:id/logs
 
 Returns session tracing logs.
 
+Note: endpoint is currently not implemented in the codebase (returns HTTP 501).
+
+Example curl (get session logs):
+
+```sh
+curl -X GET http://localhost:8080/api/sessions/<session-id>/logs
+```
+
 ### Store Session Logs
 
 ```http
@@ -245,6 +336,15 @@ POST /api/sessions/:id/logs
 ```
 
 Uploads session tracing logs.
+
+Intended usage: upload tracing artifacts for the given session. The current handlers are not implemented in the codebase (returns HTTP 501). When implemented, this endpoint is expected to accept file uploads (multipart/form-data) containing the logs/artifacts for the session.
+
+Example curl (upload session logs):
+
+```sh
+curl -X POST http://localhost:8080/api/sessions/<session-id>/logs \
+  -F "file=@/path/to/log.tar.gz"
+```
 
 ## Requirements
 
