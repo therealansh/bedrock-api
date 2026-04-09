@@ -67,6 +67,12 @@ func (m *dockerManager) Start(ctx context.Context, cfg *ContainerConfig) (string
 		}
 	}
 
+	// check the labels
+	if cfg.Labels == nil {
+		cfg.Labels = make(map[string]string)
+	}
+	cfg.Labels[labelKey] = labelValue
+
 	// set up volume mounts
 	var mounts []mount.Mount
 	for hostPath, containerPath := range cfg.Volumes {
@@ -94,12 +100,10 @@ func (m *dockerManager) Start(ctx context.Context, cfg *ContainerConfig) (string
 	resp, err := m.client.ContainerCreate(
 		ctx,
 		&container.Config{
-			Image: cfg.Image,
-			Env:   cfg.Env,
-			Cmd:   cfg.Cmd,
-			Labels: map[string]string{
-				labelKey: labelValue,
-			},
+			Image:  cfg.Image,
+			Env:    cfg.Env,
+			Cmd:    cfg.Cmd,
+			Labels: cfg.Labels,
 		},
 		hostConfig,
 		nil,
@@ -173,6 +177,7 @@ func (m *dockerManager) List(ctx context.Context) ([]*ContainerInfo, error) {
 			Status:   c.Status,
 			Exited:   false,
 			ExitCode: 0,
+			Labels:   c.Labels,
 		}
 
 		// call ContainerInspect to get the exit code if the container has finished

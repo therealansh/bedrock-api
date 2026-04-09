@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -68,9 +69,7 @@ func (s *simulatorClient) ContainerCreate(_ context.Context, config *container.C
 
 	labels := make(map[string]string)
 	if config != nil && config.Labels != nil {
-		for k, v := range config.Labels {
-			labels[k] = v
-		}
+		maps.Copy(labels, config.Labels)
 	}
 
 	imageName := ""

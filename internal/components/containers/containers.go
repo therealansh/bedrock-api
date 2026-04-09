@@ -41,6 +41,8 @@ type ContainerConfig struct {
 	Volumes map[string]string
 	// Flags to control container behavior (e.g. privileged, network mode).
 	Flags map[string]any
+	// Labels to attach to the container.
+	Labels map[string]string
 }
 
 // ContainerInfo describes a container's current state.
@@ -59,4 +61,6 @@ type ContainerInfo struct {
 	ExitCode int
 	// Creation timestamp of the container.
 	CreatedAt time.Time
+	// Labels associated with the container.
+	Labels map[string]string
 }

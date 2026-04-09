@@ -21,6 +21,18 @@ func (d Daemon) preparePullRequest() (*models.Packet, error) {
 	// set sessions with containers data
 	sessions := make([]models.Session, 0)
 	for _, c := range cts {
+		// skip containers that are not part of any session
+		if ctype, ok := c.Labels["container.type"]; !ok || ctype != "target" {
+			continue
+		}
+
+		// extract the session ID from the container labels
+		sid, ok := c.Labels["container.sid"]
+		if !ok {
+			continue
+		}
+
+		// determine the session status based on the container's running and exit status
 		status := enums.SessionStatusRunning
 		if c.Exited {
 			if c.ExitCode == 0 {
@@ -30,8 +42,9 @@ func (d Daemon) preparePullRequest() (*models.Packet, error) {
 			}
 		}
 
+		// append the session to the list of sessions
 		sessions = append(sessions, models.Session{
-			Id:     c.ID,
+			Id:     sid,
 			Status: status,
 		})
 	}
@@ -85,6 +98,10 @@ func (d Daemon) startContainersForSession(session models.Session) error {
 			Cmd:     defaultTracerCommand(target),
 			Flags:   defaultContainerFlags(),
 			Volumes: defaultTracerVolumes(d.datadir, session.Id),
+			Labels: map[string]string{
+				"container.type": "tracer",
+				"container.sid":  session.Id,
+			},
 		},
 	); err != nil {
 		return err
@@ -97,6 +114,10 @@ func (d Daemon) startContainersForSession(session models.Session) error {
 			Name:  target,
 			Image: session.Spec.Image,
 			Cmd:   strings.Split(session.Spec.Command, " "),
+			Labels: map[string]string{
+				"container.type": "target",
+				"container.sid":  session.Id,
+			},
 		},
 	); err != nil {
 		return err
