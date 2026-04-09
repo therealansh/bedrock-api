@@ -218,7 +218,7 @@ Request body (application/json):
 {
   "image": "<docker-image>",
   "command": "<command-to-run>",
-  "ttl": "<duration>"
+  "ttl": "<duration> (e.g., 10s, 6m, 1h)"
 }
 ```
 
@@ -226,7 +226,7 @@ Fields:
 
 * image (string) - Docker image to run (e.g. "nginx:stable").
 * command (string) - space-separated command string that will be split on spaces and passed to the container as an argv list.
-* ttl (integer) - session time-to-live in seconds; DockerD will stop the session after this duration if it hasn't finished.
+* ttl (string) - session time-to-live in duration; DockerD will stop the session after this duration if it hasn't finished.
 
 Example: start a short-lived nginx session
 
@@ -298,17 +298,16 @@ Request body: none
 Response (application/json): array of Session objects. Each Session has the shape:
 
 ```json
-{
-  "id": "<uuid>",
-  "dockerd_id": "<dockerd-id>",
-  "created_at": "<timestamp>",
-  "status": "<status>",
-  "spec": {
+[
+  {
+    "id": "<uuid>",
+    "created_at": "<timestamp>",
+    "status": "<status>",
     "image": "<docker-image>",
     "command": "<command-string>",
     "ttl": "<duration>"
   }
-}
+]
 ```
 
 Example curl (list sessions):
