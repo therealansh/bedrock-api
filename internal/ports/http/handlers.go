@@ -49,19 +49,19 @@ func (h HTTPServer) createSession(c *echo.Context) error {
 	}
 
 	// create and save session to KV store
-	session := models.Session{
+	session := &models.Session{
 		Id:        uuid.New().String(),
 		DockerDId: dockerd,
 		CreatedAt: time.Now(),
 		Status:    enums.SessionStatusPending,
 		Spec:      *spec,
 	}
-	if err := h.sessionStore.SaveSession(&session); err != nil {
+	if err := h.sessionStore.SaveSession(session); err != nil {
 		h.Logr.Warn("failed to save session", zap.Error(err), zap.String("session id", session.Id), zap.String("dockerd id", session.DockerDId))
 		return c.String(http.StatusInternalServerError, "failed to save session")
 	}
 
-	return c.JSON(http.StatusCreated, session)
+	return c.JSON(http.StatusCreated, ToResponseSession(session))
 }
 
 // updateSession updates an existing session with the specified ID based on the request payload.
@@ -97,18 +97,25 @@ func (h HTTPServer) updateSession(c *echo.Context) error {
 		return c.String(http.StatusInternalServerError, "failed to save session")
 	}
 
-	return c.JSON(http.StatusOK, session)
+	return c.JSON(http.StatusOK, ToResponseSession(session))
 }
 
 // getSessions retrieves a list of all sessions and returns them in the response.
 func (h HTTPServer) getSessions(c *echo.Context) error {
+	// fetch all sessions from the store
 	sessions, err := h.sessionStore.ListSessions()
 	if err != nil {
 		h.Logr.Warn("failed to list sessions", zap.Error(err))
 		return c.String(http.StatusInternalServerError, "failed to list sessions")
 	}
 
-	return c.JSON(http.StatusOK, sessions)
+	// convert sessions to response format
+	var responseSessions []ResponseSession
+	for _, session := range sessions {
+		responseSessions = append(responseSessions, *ToResponseSession(session))
+	}
+
+	return c.JSON(http.StatusOK, responseSessions)
 }
 
 // getSessionLogs retrieves the logs for a specific session based on the session ID provided in the request parameters.

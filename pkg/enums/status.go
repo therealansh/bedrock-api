@@ -10,3 +10,8 @@ const (
 	SessionStatusStopped  SessionStatus = "stopped"
 	SessionStatusFinished SessionStatus = "finished"
 )
+
+// String returns the string representation of the SessionStatus.
+func (s SessionStatus) String() string {
+	return string(s)
+}
