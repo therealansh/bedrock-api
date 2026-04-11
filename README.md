@@ -1,6 +1,6 @@
 # Bedrock API
 
-![Coverage](https://img.shields.io/badge/coverage-42.7%25-orange)
+![Coverage](https://img.shields.io/badge/coverage-41.3%25-orange)
 
 **Bedrock API** is an HTTP service that coordinates **Bedrock tracing workloads** through REST APIs and internal event-driven communication.
 
