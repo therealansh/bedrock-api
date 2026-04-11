@@ -45,8 +45,8 @@ func (d Daemon) preparePullRequest() (*models.Packet, error) {
 		// append the event to the list of events
 		events = append(events, models.NewEvent().
 			WithSessionId(sid).
-			WithEventType(enums.EventTypeSessionRunning).
-			WithPayload(status),
+			WithEventType(status).
+			WithPayload(nil),
 		)
 	}
 
@@ -70,13 +70,13 @@ func (d Daemon) syncWithAPI(events []models.Event) []error {
 			); err != nil {
 				errors = append(errors, fmt.Errorf("failed to start containers for session %s: %w", event.GetSessionId(), err))
 			}
-		case enums.EventTypeSessionFailed:
-			if err := d.deleteContainersForSession(event.GetSessionId()); err != nil {
-				errors = append(errors, fmt.Errorf("failed to delete containers for session %s: %w", event.GetSessionId(), err))
-			}
-		case enums.EventTypeSessionEnd:
+		case enums.EventTypeSessionStopped:
 			if err := d.stopContainersForSession(event.GetSessionId()); err != nil {
 				errors = append(errors, fmt.Errorf("failed to stop containers for session %s: %w", event.GetSessionId(), err))
+			}
+		case enums.EventTypeSessionCleanup:
+			if err := d.deleteContainersForSession(event.GetSessionId()); err != nil {
+				errors = append(errors, fmt.Errorf("failed to delete containers for session %s: %w", event.GetSessionId(), err))
 			}
 		}
 	}
@@ -86,8 +86,16 @@ func (d Daemon) syncWithAPI(events []models.Event) []error {
 
 // starts the target and tracer containers for a given session.
 func (d Daemon) startContainersForSession(sessionId string, sessionSpec models.Spec) error {
+	// create a new background context for stopping containers
+	ctx := context.Background()
+
 	target := fmt.Sprintf("bedrock-target-%s", sessionId)
 	tracer := fmt.Sprintf("bedrock-tracer-%s", sessionId)
+
+	// check if the target container is running before creating
+	if _, err := d.ContainerManager.Get(ctx, target); err == nil {
+		return nil
+	}
 
 	// create the output directory for the tracer
 	if err := createTracerOutputDir(d.datadir, sessionId); err != nil {
@@ -96,7 +104,7 @@ func (d Daemon) startContainersForSession(sessionId string, sessionSpec models.S
 
 	// start the tracer container
 	if _, err := d.ContainerManager.Start(
-		context.Background(),
+		ctx,
 		&containers.ContainerConfig{
 			Name:    tracer,
 			Image:   d.tracerImage,
@@ -109,12 +117,12 @@ func (d Daemon) startContainersForSession(sessionId string, sessionSpec models.S
 			},
 		},
 	); err != nil {
-		return err
+		return fmt.Errorf("failed to start container %s: %w", tracer, err)
 	}
 
 	// start the target container
 	if _, err := d.ContainerManager.Start(
-		context.Background(),
+		ctx,
 		&containers.ContainerConfig{
 			Name:  target,
 			Image: sessionSpec.Image,
@@ -125,7 +133,7 @@ func (d Daemon) startContainersForSession(sessionId string, sessionSpec models.S
 			},
 		},
 	); err != nil {
-		return err
+		return fmt.Errorf("failed to start container %s: %w", target, err)
 	}
 
 	return nil
