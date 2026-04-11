@@ -18,6 +18,7 @@ func (z ZMQServer) socketReceiver(ctx context.Context, router *goczmq.Sock, chan
 	router.SetRcvtimeo(2000)
 
 	for {
+		// check the context before receiving
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -34,8 +35,9 @@ func (z ZMQServer) socketReceiver(ctx context.Context, router *goczmq.Sock, chan
 			continue
 		}
 
-		z.Logr.Debug("new message", zap.String("ip", string(request[0])))
+		z.Logr.Debug("received message", zap.String("mac_address", string(request[0])))
 
+		// publish over input channel
 		channel <- request
 	}
 }
@@ -51,6 +53,8 @@ func (z ZMQServer) socketSender(ctx context.Context, router *goczmq.Sock, channe
 				z.Logr.Warn("failed to send message", zap.Error(err))
 				return fmt.Errorf("sender router failed: %v", err)
 			}
+
+			z.Logr.Debug("sent message", zap.String("mac_address", string(event[0])))
 		}
 
 	}
@@ -63,23 +67,31 @@ func (z ZMQServer) socketHandler(ctx context.Context, in chan [][]byte, out chan
 		case <-ctx.Done():
 			return ctx.Err()
 		case event := <-in:
-			out <- z.processEvent(event)
+			// socket handler needs to have both MAC and event frame
+			if len(event) == 2 {
+				mac := event[0]
+				response := z.processPacketData(event[1])
+
+				out <- [][]byte{mac, response}
+			} else {
+				out <- event
+			}
 		}
 	}
 }
 
-// process event is the main logic of ZMQ server. It processes incoming events.
-func (z ZMQServer) processEvent(event [][]byte) [][]byte {
+// process packet data is the main handler of API's ZMQ server.
+func (z ZMQServer) processPacketData(raw []byte) []byte {
 	// parse events into packets
-	pkt, err := models.PacketFromBytes(event[1])
+	pkt, err := models.PacketFromBytes(raw)
 	if err != nil {
 		z.Logr.Warn("failed to parse event", zap.Error(err))
-		return event
+		return raw
 	}
 
 	// reply empty packets
 	if pkt.IsEmpty() {
-		return [][]byte{event[0], pkt.ToBytes()}
+		return pkt.ToBytes()
 	}
 
 	// create a response packet
@@ -90,7 +102,7 @@ func (z ZMQServer) processEvent(event [][]byte) [][]byte {
 	dockerd := ""
 	if val, ok := pkt.Headers["sender"]; !ok {
 		z.Logr.Warn("sender header is missing")
-		return [][]byte{event[0], responsePkt.ToBytes()}
+		return responsePkt.ToBytes()
 	} else {
 		dockerd = val
 	}
@@ -99,13 +111,8 @@ func (z ZMQServer) processEvent(event [][]byte) [][]byte {
 	z.DockerDHealthChannel <- dockerd
 	z.Logr.Debug("new message from daemon", zap.String("dockerd", dockerd))
 
-	// read events from packet and update KV storage
+	// read events from packet events and update session status in KV storage accordingly
 	for _, event := range pkt.Events {
-		// api only cares about session running, failed, and finished events, skip other events
-		if event.GetEventType() != enums.EventTypeSessionRunning && event.GetEventType() != enums.EventTypeSessionFailed && event.GetEventType() != enums.EventTypeSessionEnd {
-			continue
-		}
-
 		// get the session id from header
 		sid := event.GetSessionId()
 
@@ -122,14 +129,21 @@ func (z ZMQServer) processEvent(event [][]byte) [][]byte {
 			continue
 		}
 
-		// set session status to failed and update the timestamp
-		if event.GetEventType() == enums.EventTypeSessionFailed {
-			record.Status = z.stateMachine.Transition(record.Status, enums.SessionStatusFailed)
-		} else if event.GetEventType() == enums.EventTypeSessionRunning {
-			record.Status = z.stateMachine.Transition(record.Status, enums.SessionStatusRunning)
-		} else if event.GetEventType() == enums.EventTypeSessionEnd {
-			record.Status = z.stateMachine.Transition(record.Status, enums.SessionStatusFinished)
+		// update session status based on event type
+		var newSessionStatus enums.SessionStatus
+		switch event.GetEventType() {
+		case enums.EventTypeSessionRunning:
+			newSessionStatus = enums.SessionStatusRunning
+		case enums.EventTypeSessionEnd:
+			newSessionStatus = enums.SessionStatusFinished
+		case enums.EventTypeSessionFailed:
+			newSessionStatus = enums.SessionStatusFailed
+		default:
+			continue
 		}
+
+		// use state machine for safe state transition
+		record.Status = z.stateMachine.Transition(record.Status, newSessionStatus)
 
 		// update the session in KV storage
 		if err := z.sessionStore.SaveSession(record); err != nil {
@@ -148,7 +162,7 @@ func (z ZMQServer) processEvent(event [][]byte) [][]byte {
 	if err != nil {
 		z.Logr.Warn("failed to list sessions", zap.Error(err))
 
-		return [][]byte{event[0], responsePkt.ToBytes()}
+		return responsePkt.ToBytes()
 	}
 
 	// only include running, stopped, or finished sessions
@@ -161,18 +175,24 @@ func (z ZMQServer) processEvent(event [][]byte) [][]byte {
 					WithEventType(enums.EventTypeSessionStart).
 					WithPayload(session.Spec),
 			)
-		case enums.SessionStatusFailed:
 		case enums.SessionStatusStopped:
+			responsePkt.WithEvents(
+				models.NewEvent().
+					WithSessionId(session.Id).
+					WithEventType(enums.EventTypeSessionStopped).
+					WithPayload(nil),
+			)
+		case enums.SessionStatusFailed:
 		case enums.SessionStatusFinished:
 			responsePkt.WithEvents(
 				models.NewEvent().
 					WithSessionId(session.Id).
-					WithEventType(enums.EventTypeSessionEnd).
+					WithEventType(enums.EventTypeSessionCleanup).
 					WithPayload(nil),
 			)
 		}
 	}
 
 	// send the response packet back to the sender
-	return [][]byte{event[0], responsePkt.ToBytes()}
+	return responsePkt.ToBytes()
 }

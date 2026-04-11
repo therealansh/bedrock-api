@@ -23,7 +23,7 @@ func NewStateMachine() *StateMachine {
 			states: map[enums.SessionStatus][]enums.SessionStatus{
 				enums.SessionStatusPending:  {enums.SessionStatusRunning, enums.SessionStatusStopped, enums.SessionStatusFailed, enums.SessionStatusFinished},
 				enums.SessionStatusRunning:  {enums.SessionStatusStopped, enums.SessionStatusFailed, enums.SessionStatusFinished},
-				enums.SessionStatusStopped:  {},
+				enums.SessionStatusStopped:  {enums.SessionStatusFinished},
 				enums.SessionStatusFailed:   {},
 				enums.SessionStatusFinished: {},
 			},
