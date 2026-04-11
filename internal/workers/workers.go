@@ -8,6 +8,7 @@ import (
 	"github.com/amirhnajafiz/bedrock-api/internal/scheduler"
 	"github.com/amirhnajafiz/bedrock-api/internal/storage"
 	"github.com/amirhnajafiz/bedrock-api/pkg/enums"
+
 	"go.uber.org/zap"
 )
 
@@ -19,6 +20,8 @@ func WorkerCheckExpiredSessions(ctx context.Context, logr *zap.Logger, interval 
 	// ticker is used to periodically check for expired sessions
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+
+	logr.Info("worker started", zap.Duration("interval", interval))
 
 	for {
 		select {
@@ -33,10 +36,20 @@ func WorkerCheckExpiredSessions(ctx context.Context, logr *zap.Logger, interval 
 				continue
 			}
 
-			// loop through the sessions in the session store and remove any that have expired
+			// loop through the sessions in the session store mark any that have expired
 			for _, session := range records {
+				// only consider running sessions
+				if session.Status != enums.SessionStatusRunning {
+					continue
+				}
+
+				// check with the TTL
 				if session.CreatedAt.Add(session.Spec.TTL).Before(timeSnapshot) {
-					session.Status = enums.SessionStatusFinished
+					session.Status = enums.SessionStatusStopped
+
+					logr.Debug("session expired", zap.String("session_id", session.Id))
+
+					// update the session
 					if err := ss.SaveSession(session); err != nil {
 						logr.Error("failed to update session", zap.Error(err))
 					}
@@ -59,6 +72,8 @@ func WorkerDockerDHealthCheck(ctx context.Context, input chan string, logr *zap.
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	logr.Info("worker started", zap.Duration("interval", interval))
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -67,6 +82,8 @@ func WorkerDockerDHealthCheck(ctx context.Context, input chan string, logr *zap.
 			// update the healthMap with the current time for the received Docker daemon
 			healthMap[dockerd] = time.Now()
 			scheduler.Append(dockerd)
+
+			logr.Debug("dockerd append", zap.String("dockerd_id", dockerd))
 		case <-ticker.C:
 			timeSnapshot := time.Now()
 
@@ -74,6 +91,7 @@ func WorkerDockerDHealthCheck(ctx context.Context, input chan string, logr *zap.
 			for dockerd, lastUpdated := range healthMap {
 				if timeSnapshot.Sub(lastUpdated) > interval {
 					logr.Warn("removing stale Docker daemon from health map", zap.String("dockerd", dockerd))
+
 					delete(healthMap, dockerd)
 					scheduler.Drop(dockerd)
 				}

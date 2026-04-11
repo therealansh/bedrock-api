@@ -1,11 +1,13 @@
 package models
 
-import "github.com/amirhnajafiz/bedrock-api/pkg/enums"
+import (
+	"github.com/amirhnajafiz/bedrock-api/pkg/enums"
+)
 
 // Event represents an event that can be sent over ZMQ.
 type Event struct {
 	Headers map[string]string `json:"headers"`
-	Payload any               `json:"payload"`
+	Payload []byte            `json:"payload"`
 }
 
 // NewEvent creates and returns a new Event instance.
@@ -38,12 +40,12 @@ func (e Event) GetSessionId() string {
 }
 
 // WithPayload sets the payload of the event and returns the event for chaining.
-func (e Event) WithPayload(payload any) Event {
-	e.Payload = payload
+func (e Event) WithPayload(data []byte) Event {
+	e.Payload = data
 	return e
 }
 
 // GetPayload retrieves the payload of the event.
-func (e Event) GetPayload() any {
+func (e Event) GetPayload() []byte {
 	return e.Payload
 }

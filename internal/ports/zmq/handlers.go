@@ -2,6 +2,7 @@ package zmq
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -161,22 +162,32 @@ func (z ZMQServer) processPacketData(raw []byte) []byte {
 	sessions, err := z.sessionStore.ListSessionsByDockerDId(dockerd)
 	if err != nil {
 		z.Logr.Warn("failed to list sessions", zap.Error(err))
-
 		return responsePkt.ToBytes()
 	}
 
+	z.Logr.Debug("processing sessions", zap.String("dockerd_id", dockerd), zap.Int("sessions", len(sessions)))
+
 	// only include running, stopped, or finished sessions
+	events := make([]models.Event, 0)
 	for _, session := range sessions {
 		switch session.Status {
 		case enums.SessionStatusPending:
-			responsePkt.WithEvents(
+			bytes, err := json.Marshal(session.Spec)
+			if err != nil {
+				z.Logr.Warn("failed to parse spec", zap.String("session_id", session.Id), zap.Error(err))
+				continue
+			}
+
+			events = append(
+				events,
 				models.NewEvent().
 					WithSessionId(session.Id).
 					WithEventType(enums.EventTypeSessionStart).
-					WithPayload(session.Spec),
+					WithPayload(bytes),
 			)
 		case enums.SessionStatusStopped:
-			responsePkt.WithEvents(
+			events = append(
+				events,
 				models.NewEvent().
 					WithSessionId(session.Id).
 					WithEventType(enums.EventTypeSessionStopped).
@@ -184,7 +195,8 @@ func (z ZMQServer) processPacketData(raw []byte) []byte {
 			)
 		case enums.SessionStatusFailed:
 		case enums.SessionStatusFinished:
-			responsePkt.WithEvents(
+			events = append(
+				events,
 				models.NewEvent().
 					WithSessionId(session.Id).
 					WithEventType(enums.EventTypeSessionCleanup).
@@ -194,5 +206,5 @@ func (z ZMQServer) processPacketData(raw []byte) []byte {
 	}
 
 	// send the response packet back to the sender
-	return responsePkt.ToBytes()
+	return responsePkt.WithEvents(events...).ToBytes()
 }

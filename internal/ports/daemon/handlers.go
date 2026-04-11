@@ -2,12 +2,14 @@ package daemon
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/amirhnajafiz/bedrock-api/internal/components/containers"
 	"github.com/amirhnajafiz/bedrock-api/pkg/enums"
 	"github.com/amirhnajafiz/bedrock-api/pkg/models"
+	"go.uber.org/zap"
 )
 
 // prepares the pull request packet with the current system status, including the list of containers and their statuses.
@@ -63,10 +65,16 @@ func (d Daemon) syncWithAPI(events []models.Event) []error {
 	for _, event := range events {
 		switch event.GetEventType() {
 		case enums.EventTypeSessionStart:
+			var spec models.Spec
+			if err := json.Unmarshal(event.GetPayload(), &spec); err != nil {
+				d.Logr.Warn("failed to unmarshal spec", zap.String("session_id", event.GetSessionId()), zap.Error(err))
+				continue
+			}
+
 			// start the target and tracer containers for this session
 			if err := d.startContainersForSession(
 				event.GetSessionId(),
-				event.GetPayload().(models.Spec),
+				spec,
 			); err != nil {
 				errors = append(errors, fmt.Errorf("failed to start containers for session %s: %w", event.GetSessionId(), err))
 			}

@@ -27,7 +27,7 @@ func TestWorkerCheckExpiredSessions(t *testing.T) {
 		Id:        "1",
 		DockerDId: "d1",
 		CreatedAt: time.Now(),
-		Status:    enums.SessionStatusPending,
+		Status:    enums.SessionStatusRunning,
 		Spec: models.Spec{
 			TTL: 2 * time.Second,
 		},
@@ -39,8 +39,8 @@ func TestWorkerCheckExpiredSessions(t *testing.T) {
 	// session must exist now
 	if sess, err := ss.GetSession("1", "d1"); err != nil {
 		t.Errorf("Expected session to exist, got error: %v", err)
-	} else if sess.Status != enums.SessionStatusPending {
-		t.Errorf("Expected session status to be pending, got: %v", sess.Status)
+	} else if sess.Status != enums.SessionStatusRunning {
+		t.Errorf("Expected session status to be running, got: %v", sess.Status)
 	}
 
 	// wait for a short period to allow the worker to run
@@ -49,8 +49,8 @@ func TestWorkerCheckExpiredSessions(t *testing.T) {
 	// session must not exist after TTL has expired
 	if sess, err := ss.GetSession("1", "d1"); err != nil {
 		t.Errorf("Expected session to exist, got error: %v", err)
-	} else if sess.Status != enums.SessionStatusFinished {
-		t.Errorf("Expected session status to be finished, got: %v", sess.Status)
+	} else if sess.Status != enums.SessionStatusStopped {
+		t.Errorf("Expected session status to be stopped, got: %v", sess.Status)
 	}
 
 	// cancel the context to stop the worker

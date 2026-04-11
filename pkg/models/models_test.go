@@ -16,8 +16,8 @@ func TestPacket(t *testing.T) {
 		original := models.NewPacket().
 			WithSender("test-sender").
 			WithEvents(
-				models.NewEvent().WithEventType(enums.EventTypeSessionEnd).WithPayload(map[string]string{"key": "value"}),
-				models.NewEvent().WithEventType(enums.EventTypeSessionStart).WithPayload("some payload"),
+				models.NewEvent().WithEventType(enums.EventTypeSessionEnd).WithPayload([]byte("hello world")),
+				models.NewEvent().WithEventType(enums.EventTypeSessionStart).WithPayload([]byte("some payload")),
 			)
 
 		bytes := original.ToBytes()
