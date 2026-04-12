@@ -26,15 +26,15 @@ func DefaultAPIConfig() *APIConfig {
 
 func DefaultDockerdConfig() *DockerdConfig {
 	return &DockerdConfig{
-		Name:                   "hostname",
-		LogLevel:               "info",
-		APISocketHost:          "127.0.0.1",
-		APISocketPort:          8081,
-		APITimeout:             "5s",
-		PullInterval:           "10s",
-		BedrockTracerImage:     "ghcr.io/amirhnajafiz/bedrock-tracer:v0.0.6-beta",
-		DataDir:                "/tmp/bedrock-logs",
-		ContainerRuntimeClient: "docker",
+		Name:                      "hostname",
+		LogLevel:                  "info",
+		APISocketHost:             "127.0.0.1",
+		APISocketPort:             8081,
+		APITimeout:                "5s",
+		PullInterval:              "10s",
+		BedrockTracerImage:        "ghcr.io/amirhnajafiz/bedrock-tracer:v0.0.6-beta",
+		DataDir:                   "/tmp/bedrock-logs",
+		ContainerRuntimeInterface: "simulator",
 	}
 }
 

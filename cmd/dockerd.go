@@ -52,8 +52,21 @@ func StartDockerd(ctx context.Context, cfg *configs.DockerdConfig) error {
 		name = uuid.NewString()
 	}
 
-	// create Docker client and container manager
-	cm, err := containers.NewContainerManager(cfg.ContainerRuntimeClient)
+	// create container manager instance
+	var (
+		cm  containers.ContainerManager
+		err error
+	)
+
+	switch cfg.ContainerRuntimeInterface {
+	case "docker":
+		cm, err = containers.NewDockerManager()
+	case "simulator":
+		cm, err = containers.NewSimulatorManager()
+	default:
+		return fmt.Errorf("invalid container runtime interface: %s", cfg.ContainerRuntimeInterface)
+	}
+
 	if err != nil {
 		logr.Error("failed to create Docker Manager", zap.Error(err))
 		return err
