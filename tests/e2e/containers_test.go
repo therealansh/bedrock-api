@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/amirhnajafiz/bedrock-api/internal/components/containers"
+	"github.com/amirhnajafiz/bedrock-api/internal/components/containers/docker"
+	"github.com/amirhnajafiz/bedrock-api/pkg/models"
 
 	"github.com/docker/docker/api/types/image"
 )
@@ -20,13 +22,13 @@ func TestDockerManager(t *testing.T) {
 	defer ctx.Done()
 
 	// create a container manager
-	cm, err := containers.NewContainerManager("docker")
+	cm, err := containers.NewDockerManager()
 	if err != nil {
 		t.Fatalf("failed to create container manager: %v", err)
 	}
 
 	// create an nginx container
-	containerID, err := cm.Start(ctx, &containers.ContainerConfig{
+	containerID, err := cm.Create(ctx, &models.ContainerConfig{
 		Name:  "nginx-container",
 		Image: "nginx:latest",
 	})
@@ -34,8 +36,14 @@ func TestDockerManager(t *testing.T) {
 		t.Fatalf("failed to create container: %v", err)
 	}
 
+	// start the nginx container
+	err = cm.Start(ctx, containerID)
+	if err != nil {
+		t.Fatalf("failed to start container: %v", err)
+	}
+
 	// list containers and check if the nginx container is running
-	containersList, err := cm.List(ctx)
+	containersList, err := cm.List(ctx, nil)
 	if err != nil {
 		t.Fatalf("failed to list containers: %v", err)
 	}
@@ -59,7 +67,7 @@ func TestDockerManager(t *testing.T) {
 	}
 
 	// list containers again and check if the nginx container is stopped
-	containersList, err = cm.List(ctx)
+	containersList, err = cm.List(ctx, nil)
 	if err != nil {
 		t.Fatalf("failed to list containers: %v", err)
 	}
@@ -105,7 +113,7 @@ func TestDockerManager(t *testing.T) {
 	}
 
 	// list containers again and check if the nginx container is removed
-	containersList, err = cm.List(ctx)
+	containersList, err = cm.List(ctx, nil)
 	if err != nil {
 		t.Fatalf("failed to list containers: %v", err)
 	}
@@ -117,8 +125,13 @@ func TestDockerManager(t *testing.T) {
 	}
 	t.Logf("nginx container removed successfully")
 
-	// remove the nginx image to clean up
-	_, err = cm.GetClient().ImageRemove(ctx, "nginx:latest", image.RemoveOptions{})
+	// create a docker client and remove the nginx image to clean up
+	dclient, err := docker.NewDockerContainerClient()
+	if err != nil {
+		t.Fatalf("failed to create docker client: %v", err)
+	}
+
+	_, err = dclient.ImageRemove(ctx, "nginx:latest", image.RemoveOptions{})
 	if err != nil {
 		t.Errorf("failed to remove nginx image: %v", err)
 	} else {
