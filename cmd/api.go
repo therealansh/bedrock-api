@@ -90,6 +90,12 @@ func StartAPI(ctx context.Context, cfg *configs.APIConfig) error {
 
 		return nil
 	})
+	erg.Go(func() error {
+		workers.WorkerRemoveFinishedSessions(ectx, logr.Named("cleanup-worker"), sessionStatusCheckInterval)
+		logr.Info("cleanup worker stopped")
+
+		return nil
+	})
 
 	// build and start the ZMQ server in a separate goroutine
 	zmqAddress := fmt.Sprintf("tcp://%s:%d", cfg.SocketHost, cfg.SocketPort)

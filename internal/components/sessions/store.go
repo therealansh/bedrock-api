@@ -109,6 +109,12 @@ func (s *sessionStore) ListSessionsByDockerDId(dockerdId string) ([]*models.Sess
 		if err := json.Unmarshal(b, &session); err != nil {
 			return nil, err
 		}
+
+		// skip deleted sessions
+		if session.DeletedAt != nil {
+			continue
+		}
+
 		sessions = append(sessions, session)
 	}
 
