@@ -2,6 +2,7 @@ package filemd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -140,6 +141,107 @@ func TestDaemon_ProcessSession_NoFiles(t *testing.T) {
 	uploads := uploader.get("sess-3")
 	if len(uploads) != 0 {
 		t.Errorf("expected 0 uploads for empty volume, got %d", len(uploads))
+	}
+}
+
+// failingUploader fails a configurable number of times before succeeding.
+type failingUploader struct {
+	mu        sync.Mutex
+	failCount int
+	callCount int
+	uploads   map[string][]LogUpload
+}
+
+func newFailingUploader(failCount int) *failingUploader {
+	return &failingUploader{
+		failCount: failCount,
+		uploads:   make(map[string][]LogUpload),
+	}
+}
+
+func (f *failingUploader) Upload(sessionID string, files []LogUpload) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.callCount++
+	if f.callCount <= f.failCount {
+		return fmt.Errorf("upload error (attempt %d)", f.callCount)
+	}
+	f.uploads[sessionID] = files
+	return nil
+}
+
+func (f *failingUploader) getCallCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.callCount
+}
+
+func (f *failingUploader) get(sessionID string) []LogUpload {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.uploads[sessionID]
+}
+
+func TestDaemon_ProcessSession_RetrySuccess(t *testing.T) {
+	base := t.TempDir()
+
+	sessionDir := filepath.Join(base, "sess-retry")
+	os.MkdirAll(sessionDir, 0o755)
+	os.WriteFile(filepath.Join(sessionDir, "target.log"), []byte("target-data"), 0o644)
+
+	// Fail twice, succeed on third attempt.
+	uploader := newFailingUploader(2)
+
+	d := &Daemon{
+		Scanner:      &mockScanner{sessions: []string{"sess-retry"}},
+		Uploader:     uploader,
+		VolumePath:   base,
+		PollInterval: time.Millisecond,
+		Logger:       noopLogger(),
+	}
+
+	d.processOnce()
+
+	if got := uploader.getCallCount(); got != 3 {
+		t.Errorf("expected 3 upload attempts, got %d", got)
+	}
+
+	uploads := uploader.get("sess-retry")
+	if len(uploads) != 1 {
+		t.Fatalf("expected 1 upload after retry, got %d", len(uploads))
+	}
+
+	if _, err := os.Stat(sessionDir); !os.IsNotExist(err) {
+		t.Error("volume directory should have been removed after successful retry")
+	}
+}
+
+func TestDaemon_ProcessSession_RetryExhaustion(t *testing.T) {
+	base := t.TempDir()
+
+	sessionDir := filepath.Join(base, "sess-fail")
+	os.MkdirAll(sessionDir, 0o755)
+	os.WriteFile(filepath.Join(sessionDir, "target.log"), []byte("target-data"), 0o644)
+
+	// Fail all 3 attempts.
+	uploader := newFailingUploader(3)
+
+	d := &Daemon{
+		Scanner:      &mockScanner{sessions: []string{"sess-fail"}},
+		Uploader:     uploader,
+		VolumePath:   base,
+		PollInterval: time.Millisecond,
+		Logger:       noopLogger(),
+	}
+
+	d.processOnce()
+
+	if got := uploader.getCallCount(); got != 3 {
+		t.Errorf("expected 3 upload attempts, got %d", got)
+	}
+
+	if _, err := os.Stat(sessionDir); os.IsNotExist(err) {
+		t.Error("volume directory should NOT have been removed after retry exhaustion")
 	}
 }
 
