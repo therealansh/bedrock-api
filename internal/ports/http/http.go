@@ -3,6 +3,7 @@ package http
 import (
 	"fmt"
 
+	"github.com/amirhnajafiz/bedrock-api/internal/components/logs"
 	"github.com/amirhnajafiz/bedrock-api/internal/components/sessions"
 	zmqclient "github.com/amirhnajafiz/bedrock-api/internal/components/zmq_client"
 	"github.com/amirhnajafiz/bedrock-api/internal/scheduler"
@@ -23,6 +24,7 @@ type HTTPServer struct {
 	address      string
 	scheduler    scheduler.Scheduler
 	sessionStore sessions.SessionStore
+	logStore     logs.LogStore
 	zclient      *zmqclient.ZMQClient
 	stateMachine *statemachine.StateMachine
 }
@@ -33,6 +35,7 @@ func (h HTTPServer) Build(address, socketAddress string) *HTTPServer {
 
 	h.scheduler = scheduler.NewRoundRobin()
 	h.sessionStore = sessions.NewSessionStore(storage.NewGoCache())
+	h.logStore = logs.NewLogStore(storage.NewGoCache())
 	h.zclient = zmqclient.NewZMQClient(socketAddress)
 	h.stateMachine = statemachine.NewStateMachine()
 

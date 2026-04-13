@@ -1,5 +1,7 @@
 package configs
 
+import "time"
+
 // Default returns the default configuration for the application.
 func Default() *Config {
 	return &Config{
@@ -40,9 +42,11 @@ func DefaultDockerdConfig() *DockerdConfig {
 
 func DefaultFileMDConfig() *FileMDConfig {
 	return &FileMDConfig{
-		LogLevel:    "info",
-		APIHTTPHost: "127.0.0.1",
-		APIHTTPPort: 8081,
-		DataDir:     "/tmp/bedrock-logs",
+		LogLevel:     "info",
+		APIHTTPHost:  "127.0.0.1",
+		APIHTTPPort:  8081,
+		DataDir:      "/tmp/bedrock-logs",
+		VolumePath:   "/var/lib/bedrock/volumes",
+		PollInterval: 10 * time.Second,
 	}
 }

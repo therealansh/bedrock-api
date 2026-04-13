@@ -63,6 +63,9 @@ func (d Daemon) prepareEvents() ([]models.Event, error) {
 			} else {
 				status = enums.EventTypeSessionFailed
 			}
+
+			// collect logs and remove lock file for FileMD
+			d.collectSessionLogs(sid)
 		}
 
 		// append the event to the list of events
@@ -170,6 +173,11 @@ func (d Daemon) startContainersForSession(sessionId string, sessionSpec models.S
 		return fmt.Errorf("failed to create tracer output directory: %w", err)
 	}
 
+	// create lock file to signal volume is not ready
+	if err := createLockFile(d.datadir, sessionId); err != nil {
+		return fmt.Errorf("failed to create lock file: %w", err)
+	}
+
 	// create the tracer container
 	tracerId, err := d.ContainerManager.Create(
 		ctx,
@@ -227,6 +235,66 @@ func (d Daemon) startContainersForSession(sessionId string, sessionSpec models.S
 	d.Logr.Info("container started", zap.String("container_id", targetId), zap.String("name", target))
 
 	return nil
+}
+
+// collectSessionLogs fetches stdout/stderr from the target and tracer containers
+// and writes them to the session volume. It then removes the .lock file to signal
+// that the volume is ready for FileMD to upload.
+func (d Daemon) collectSessionLogs(sessionId string) {
+	ctx := context.Background()
+
+	targetName := fmt.Sprintf("bedrock-target-%s", sessionId)
+	tracerName := fmt.Sprintf("bedrock-tracer-%s", sessionId)
+
+	// list containers for this session to resolve IDs from names
+	containers, err := d.ContainerManager.List(ctx, map[string]string{
+		daemonContainerKey:       daemonContainerVal,
+		daemonContainerSessionId: sessionId,
+	})
+	if err != nil {
+		d.Logr.Warn("failed to list containers for log collection", zap.String("session_id", sessionId), zap.Error(err))
+		if err := removeLockFile(d.datadir, sessionId); err != nil {
+			d.Logr.Warn("failed to remove lock file", zap.String("session_id", sessionId), zap.Error(err))
+		}
+		return
+	}
+
+	// resolve container IDs by name
+	var targetID, tracerID string
+	for _, c := range containers {
+		if c.Name == targetName {
+			targetID = c.ID
+		} else if c.Name == tracerName {
+			tracerID = c.ID
+		}
+	}
+
+	// collect target container logs
+	if targetID != "" {
+		targetLogPath := fmt.Sprintf("%s/%s/target.log", d.datadir, sessionId)
+		if err := d.ContainerManager.StoreLogs(ctx, targetID, targetLogPath); err != nil {
+			d.Logr.Warn("failed to store target logs", zap.String("session_id", sessionId), zap.Error(err))
+		}
+	} else {
+		d.Logr.Warn("target container not found for log collection", zap.String("session_id", sessionId))
+	}
+
+	// collect tracer container logs
+	if tracerID != "" {
+		tracerLogPath := fmt.Sprintf("%s/%s/tracer.log", d.datadir, sessionId)
+		if err := d.ContainerManager.StoreLogs(ctx, tracerID, tracerLogPath); err != nil {
+			d.Logr.Warn("failed to store tracer logs", zap.String("session_id", sessionId), zap.Error(err))
+		}
+	} else {
+		d.Logr.Warn("tracer container not found for log collection", zap.String("session_id", sessionId))
+	}
+
+	// remove lock file to signal volume is ready
+	if err := removeLockFile(d.datadir, sessionId); err != nil {
+		d.Logr.Warn("failed to remove lock file", zap.String("session_id", sessionId), zap.Error(err))
+	}
+
+	d.Logr.Info("collected session logs", zap.String("session_id", sessionId))
 }
 
 // stops the target and tracer containers for a given session.

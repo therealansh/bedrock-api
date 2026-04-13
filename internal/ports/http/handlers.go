@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"time"
 
@@ -118,12 +119,76 @@ func (h HTTPServer) getSessions(c *echo.Context) error {
 	return c.JSON(http.StatusOK, responseSessions)
 }
 
-// getSessionLogs retrieves the logs for a specific session based on the session ID provided in the request parameters.
+// getSessionLogs retrieves the logs for a specific session.
 func (h HTTPServer) getSessionLogs(c *echo.Context) error {
-	return c.String(http.StatusNotImplemented, "Not implemented")
+	sessionID := c.Param("id")
+	if sessionID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "missing session id"})
+	}
+
+	entries, err := h.logStore.ListLogs(sessionID)
+	if err != nil {
+		h.Logr.Error("failed to list logs", zap.String("session_id", sessionID), zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to retrieve logs"})
+	}
+
+	if len(entries) == 0 {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "no logs found for session"})
+	}
+
+	files := make([]LogFileResponse, 0, len(entries))
+	for _, e := range entries {
+		files = append(files, LogFileResponse{
+			Filename: e.Filename,
+			Content:  e.Content,
+		})
+	}
+
+	return c.JSON(http.StatusOK, SessionLogsResponse{
+		SessionID: sessionID,
+		Files:     files,
+	})
 }
 
-// storeSessionLogs stores the logs for a specific session based on the session ID provided in the request parameters.
+// storeSessionLogs accepts a multipart upload of three log files for a session.
 func (h HTTPServer) storeSessionLogs(c *echo.Context) error {
-	return c.String(http.StatusNotImplemented, "Not implemented")
+	sessionID := c.Param("id")
+	if sessionID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "missing session id"})
+	}
+
+	stored := 0
+	for _, mapping := range storeLogsFormFields {
+		fh, err := c.FormFile(mapping.Field)
+		if err != nil {
+			// field not present in the upload — skip
+			continue
+		}
+
+		src, err := fh.Open()
+		if err != nil {
+			h.Logr.Error("failed to open uploaded file", zap.String("field", mapping.Field), zap.Error(err))
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "failed to read file: " + mapping.Field})
+		}
+
+		data, err := io.ReadAll(src)
+		src.Close()
+		if err != nil {
+			h.Logr.Error("failed to read uploaded file", zap.String("field", mapping.Field), zap.Error(err))
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "failed to read file: " + mapping.Field})
+		}
+
+		if err := h.logStore.SaveLog(sessionID, mapping.Filename, data); err != nil {
+			h.Logr.Error("failed to save log", zap.String("session_id", sessionID), zap.String("filename", mapping.Filename), zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to store log file"})
+		}
+		stored++
+	}
+
+	if stored == 0 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "no log files provided"})
+	}
+
+	h.Logr.Info("stored session logs", zap.String("session_id", sessionID), zap.Int("files", stored))
+	return c.JSON(http.StatusCreated, map[string]string{"status": "ok", "session_id": sessionID})
 }

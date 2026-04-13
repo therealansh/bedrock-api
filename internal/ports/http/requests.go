@@ -37,3 +37,14 @@ func (r RequestCreateSession) ToSpec() (*models.Spec, error) {
 type RequestUpdateSession struct {
 	Status enums.SessionStatus `json:"status"`
 }
+
+// storeLogsFormFields maps the multipart form field names to log filenames.
+// FileMD uploads exactly these three files per session.
+var storeLogsFormFields = []struct {
+	Field    string // multipart form field name
+	Filename string // stored filename
+}{
+	{Field: "target_log", Filename: "target.log"},
+	{Field: "tracer_log", Filename: "tracer.log"},
+	{Field: "vfs_pdf", Filename: "vfs.pdf"},
+}

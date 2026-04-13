@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/amirhnajafiz/bedrock-api/internal/components/filemd"
+	"github.com/amirhnajafiz/bedrock-api/internal/components/logs"
 	"github.com/amirhnajafiz/bedrock-api/internal/configs"
+	"github.com/amirhnajafiz/bedrock-api/internal/logger"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 // FileMD represents the File Management Daemon command.
@@ -32,5 +36,30 @@ func (f FileMD) Command() *cobra.Command {
 }
 
 func StartFileMD(ctx context.Context, cfg *configs.FileMDConfig) error {
-	return nil
+	logr := logger.New(cfg.LogLevel)
+
+	apiBaseURL := fmt.Sprintf("http://%s:%d", cfg.APIHTTPHost, cfg.APIHTTPPort)
+
+	scanner := &filemd.FSVolumeScanner{
+		BasePath:      cfg.VolumePath,
+		ExpectedFiles: logs.AllLogFiles,
+	}
+
+	uploader := filemd.NewHTTPUploader(apiBaseURL)
+
+	daemon := &filemd.Daemon{
+		Scanner:      scanner,
+		Uploader:     uploader,
+		VolumePath:   cfg.VolumePath,
+		PollInterval: cfg.PollInterval,
+		Logger:       logr.Named("filemd"),
+	}
+
+	logr.Info("starting filemd",
+		zap.String("volume_path", cfg.VolumePath),
+		zap.Duration("poll_interval", cfg.PollInterval),
+		zap.String("api_base_url", apiBaseURL),
+	)
+
+	return daemon.Run(ctx)
 }
