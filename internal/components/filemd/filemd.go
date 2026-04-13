@@ -8,6 +8,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	maxUploadRetries  = 3
+	initialRetryDelay = 1 * time.Second
+)
+
 // uploadFields maps each well-known log file to the multipart form field name
 // expected by the API endpoint.
 var uploadFields = []struct {
@@ -101,5 +106,33 @@ func (d *Daemon) processSession(sessionID string) error {
 		return nil
 	}
 
-	return d.Uploader.Upload(sessionID, uploads)
+	return d.retryUpload(sessionID, uploads)
+}
+
+// retryUpload attempts to upload session logs with exponential backoff.
+// Returns the last error if all attempts fail.
+func (d *Daemon) retryUpload(sessionID string, uploads []LogUpload) error {
+	var lastErr error
+	delay := initialRetryDelay
+
+	for attempt := 1; attempt <= maxUploadRetries; attempt++ {
+		lastErr = d.Uploader.Upload(sessionID, uploads)
+		if lastErr == nil {
+			return nil
+		}
+
+		d.Logger.Warn("upload attempt failed",
+			zap.String("session_id", sessionID),
+			zap.Int("attempt", attempt),
+			zap.Int("max_attempts", maxUploadRetries),
+			zap.Error(lastErr),
+		)
+
+		if attempt < maxUploadRetries {
+			time.Sleep(delay)
+			delay *= 2
+		}
+	}
+
+	return lastErr
 }
